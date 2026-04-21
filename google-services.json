@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "827280543386",
+    "project_id": "saglikbileklik-356ed",
+    "storage_bucket": "saglikbileklik-356ed.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:827280543386:android:46cd183dacde881385a38d",
+        "android_client_info": {
+          "package_name": "com.caresync.bileklikapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "277529576056-925nvugo63ifgpsvauc8rgl1idt9m4ic.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.caresync.bileklikapp",
+            "certificate_hash": "cf943c3be33300bbca82891e5dadc7c37e7e6b9a"
+          }
+        },
+        {
+          "client_id": "277529576056-kfd9sumiqkg3k7moi21bde65v3qnug67.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDQ5edXYNVjgGIesk0f3KbOtwfXLVjgRJc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "277529576056-kfd9sumiqkg3k7moi21bde65v3qnug67.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
