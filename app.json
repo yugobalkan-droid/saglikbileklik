@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "BILEKLIK_APP",
-    "slug": "BILEKLIK_APP",
+    "slug": "saglikbileklik",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -29,7 +29,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": "23f2c138-899c-4357-9101-88b696fee89b"
+        "projectId": "a046b756-e197-4891-aacc-9c8bbef7e556"
       }
     },
     "owner": "saglikbileklik"
