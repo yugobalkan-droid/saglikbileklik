@@ -28,6 +28,7 @@ export function PatientProvider({ children }) {
   const [loading, setLoading] = useState(true);
   
   const lastAlarmRef = React.useRef(null);
+  const lastTakenRef = React.useRef(null);
 
   // İlk yükleme: bakıcının hastasını bul
   useEffect(() => {
@@ -88,6 +89,27 @@ export function PatientProvider({ children }) {
                }
             }
             lastAlarmRef.current = box.lastAutonomousAlarm;
+          }
+        }
+
+        // İlaç Alındı (Buton) kontrolü
+        if (box && box.medicineTakenTime) {
+          if (lastTakenRef.current !== box.medicineTakenTime) {
+            if (lastTakenRef.current !== null) {
+               try {
+                 const { createAlert } = require('../services/alertService');
+                 await createAlert({
+                   patientId: patientId,
+                   type: 'taken', // Alındı bildirimi
+                   title: 'İlaç Alındı',
+                   message: `Kutudaki fiziksel butona basıldı! Saat: ${box.medicineTakenTime}`,
+                   time: box.medicineTakenTime,
+                 });
+               } catch(e) {
+                 console.log("Alındı bildirimi oluşturulamadı", e);
+               }
+            }
+            lastTakenRef.current = box.medicineTakenTime;
           }
         }
       })

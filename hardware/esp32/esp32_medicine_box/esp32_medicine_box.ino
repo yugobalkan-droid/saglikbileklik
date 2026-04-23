@@ -94,7 +94,8 @@ void setup() {
   // Pin modları
   pinMode(LED_PIN, OUTPUT);
   pinMode(BUZZER_PIN, OUTPUT);
-  pinMode(BUTTON_PIN, INPUT_PULLUP);  // Buton: LOW = basılı
+  pinMode(BUTTON_PIN, INPUT_PULLUP);  // Harici Buton
+  pinMode(0, INPUT_PULLUP);           // Dahili BOOT Butonu
 
   digitalWrite(LED_PIN, LOW);
   digitalWrite(BUZZER_PIN, LOW);
@@ -200,10 +201,13 @@ void loop() {
     }
   }
 
-  // ── Buton Kontrolü ──
-  if (digitalRead(BUTTON_PIN) == LOW) {
+  // ── Buton Kontrolü (Harici buton veya Dahili BOOT butonu) ──
+  bool isPressed = (digitalRead(BUTTON_PIN) == LOW) || (digitalRead(0) == LOW); // 0 = BOOT Butonu
+
+  if (isPressed) {
     delay(50);  // Debounce
-    if (digitalRead(BUTTON_PIN) == LOW) {
+    // Tekrar kontrol et
+    if ((digitalRead(BUTTON_PIN) == LOW) || (digitalRead(0) == LOW)) {
       if (!buttonPressed) {
         buttonPressed = true;
         Serial.println("[BUTON] İlaç alındı onayı!");

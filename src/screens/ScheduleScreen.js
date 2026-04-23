@@ -25,6 +25,8 @@ export default function ScheduleScreen() {
   const { patientId, scheduleGrid } = usePatient();
   const [selectedCell, setSelectedCell] = useState(null);
   const [sheetVisible, setSheetVisible] = useState(false);
+  const [sheetMode, setSheetMode] = useState('list'); // 'list' veya 'edit'
+  const [editingSlotId, setEditingSlotId] = useState(null);
   const [medName, setMedName] = useState('');
   const [medTime, setMedTime] = useState('');
 
@@ -32,10 +34,17 @@ export default function ScheduleScreen() {
   const todayIndex = today === 0 ? 6 : today - 1;
 
   const handleCellPress = (periodIdx, dayIdx) => {
-    const cellData = scheduleGrid[periodIdx]?.[dayIdx];
-    setSelectedCell({ period: periodIdx, day: dayIdx, data: cellData });
-    setMedName(cellData?.medicationName || cellData?.name || '');
-    setMedTime(cellData?.time || PERIOD_TIMES[periodIdx]);
+    const cellDataArray = scheduleGrid[periodIdx]?.[dayIdx] || [];
+    setSelectedCell({ period: periodIdx, day: dayIdx, data: cellDataArray });
+    
+    if (cellDataArray.length > 0) {
+      setSheetMode('list');
+    } else {
+      setMedName('');
+      setMedTime(PERIOD_TIMES[periodIdx]);
+      setEditingSlotId(null);
+      setSheetMode('edit');
+    }
     setSheetVisible(true);
   };
 
@@ -49,7 +58,6 @@ export default function ScheduleScreen() {
       return;
     }
 
-    // Saati düzgün formata çevir (Örn: "8:00" -> "08:00")
     let formattedTime = (medTime || PERIOD_TIMES[selectedCell.period]).trim();
     if (formattedTime.length === 4 && formattedTime.charAt(1) === ':') {
       formattedTime = '0' + formattedTime;
@@ -57,11 +65,16 @@ export default function ScheduleScreen() {
 
     try {
       await upsertSlot(patientId, {
+        id: editingSlotId, // Mevcut ilacı düzenliyorsak ID'sini gönder
         period: selectedCell.period,
         day: selectedCell.day,
         medicationName: medName.trim(),
         time: formattedTime,
       });
+      // Düzenleme/Ekleme bittikten sonra listeye dön
+      setSheetMode('list');
+      // Hücre verisini anlık olarak UI'da güncelleyemeyebiliriz, veritabanından dinliyor.
+      // Modalı kapatmak daha iyi bir UX olabilir
       closeSheet();
     } catch (error) {
       Alert.alert('Hata', 'Kayıt sırasında hata oluştu: ' + error.message);
@@ -79,14 +92,28 @@ export default function ScheduleScreen() {
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = async (slotIdToDel) => {
     if (!patientId) return;
     try {
-      await deleteSlot(patientId, selectedCell.period, selectedCell.day);
+      await deleteSlot(patientId, slotIdToDel);
       closeSheet();
     } catch (error) {
       Alert.alert('Hata', 'Silme sırasında hata oluştu: ' + error.message);
     }
+  };
+
+  const openAddMode = () => {
+    setMedName('');
+    setMedTime(PERIOD_TIMES[selectedCell.period]);
+    setEditingSlotId(null);
+    setSheetMode('edit');
+  };
+
+  const openEditMode = (medication) => {
+    setMedName(medication.name || medication.medicationName || '');
+    setMedTime(medication.time || PERIOD_TIMES[selectedCell.period]);
+    setEditingSlotId(medication.id);
+    setSheetMode('edit');
   };
 
   const closeSheet = () => {
@@ -191,9 +218,9 @@ export default function ScheduleScreen() {
             </View>
 
             {DAYS.map((day, dayIdx) => {
-              const cellData = scheduleGrid[periodIdx]?.[dayIdx];
+              const cellDataArray = scheduleGrid[periodIdx]?.[dayIdx] || [];
               const isToday = dayIdx === todayIndex;
-              const hasMed = !!cellData;
+              const hasMed = cellDataArray.length > 0;
               const pc = PERIOD_COLORS[periodIdx];
 
               return (
@@ -215,8 +242,13 @@ export default function ScheduleScreen() {
                         <Ionicons name="medical" size={10} color="#fff" />
                       </View>
                       <Text style={[styles.cellMedName, { color: pc.accent }]} numberOfLines={2}>
-                        {cellData.medicationName || cellData.name}
+                        {cellDataArray[0].medicationName || cellDataArray[0].name}
                       </Text>
+                      {cellDataArray.length > 1 && (
+                         <Text style={{fontSize: 7, fontWeight: '700', color: pc.accent, marginTop: 1}}>
+                           +{cellDataArray.length - 1} İlaç
+                         </Text>
+                      )}
                       <Text style={[styles.cellCompartment, { color: pc.gradient }]}>
                         B{compartmentNumber(periodIdx, dayIdx)}
                       </Text>
@@ -283,34 +315,63 @@ export default function ScheduleScreen() {
               </Text>
             </View>
 
-            <Text style={styles.inputLabel}>İlaç Adı</Text>
-            <TextInput
-              style={styles.input}
-              value={medName}
-              onChangeText={setMedName}
-              placeholder="Örn: Donepezil 10mg"
-              placeholderTextColor={colors.textTertiary}
-            />
+            {sheetMode === 'list' ? (
+              <View>
+                <Text style={{ ...typography.titleMedium, color: colors.textPrimary, marginBottom: spacing.md }}>
+                  Bu Bölmedeki İlaçlar
+                </Text>
+                {selectedCell.data.map((med, idx) => (
+                  <View key={med.id || idx} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceVariant, padding: spacing.md, borderRadius: borderRadius.md, marginBottom: spacing.sm }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ ...typography.bodyLarge, fontWeight: 'bold', color: colors.textPrimary }}>{med.name || med.medicationName}</Text>
+                      <Text style={{ ...typography.bodyMedium, color: colors.textSecondary }}>Saat: {med.time}</Text>
+                    </View>
+                    <TouchableOpacity style={{ padding: spacing.sm }} onPress={() => openEditMode(med)}>
+                      <Ionicons name="pencil-outline" size={20} color={colors.primary} />
+                    </TouchableOpacity>
+                    <TouchableOpacity style={{ padding: spacing.sm }} onPress={() => handleDelete(med.id)}>
+                      <Ionicons name="trash-outline" size={20} color={colors.accent} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+                
+                <Pressable style={[styles.saveBtn, { marginTop: spacing.lg, backgroundColor: colors.primarySurface }]} onPress={openAddMode}>
+                  <Ionicons name="add" size={20} color={colors.primary} />
+                  <Text style={[styles.saveBtnText, { color: colors.primary }]}>Yeni İlaç Ekle</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <View>
+                <Text style={styles.inputLabel}>İlaç Adı</Text>
+                <TextInput
+                  style={styles.input}
+                  value={medName}
+                  onChangeText={setMedName}
+                  placeholder="Örn: Donepezil 10mg"
+                  placeholderTextColor={colors.textTertiary}
+                />
 
-            <Text style={styles.inputLabel}>Saat</Text>
-            <TextInput
-              style={styles.input}
-              value={medTime}
-              onChangeText={setMedTime}
-              placeholder="Örn: 08:00"
-              placeholderTextColor={colors.textTertiary}
-            />
+                <Text style={styles.inputLabel}>Saat</Text>
+                <TextInput
+                  style={styles.input}
+                  value={medTime}
+                  onChangeText={setMedTime}
+                  placeholder="Örn: 08:00"
+                  placeholderTextColor={colors.textTertiary}
+                />
 
-            <Pressable style={styles.saveBtn} onPress={handleSave}>
-              <Ionicons name="checkmark" size={20} color={colors.textOnPrimary} />
-              <Text style={styles.saveBtnText}>Kaydet</Text>
-            </Pressable>
-
-            {selectedCell.data && (
-              <Pressable style={styles.removeBtn} onPress={handleDelete}>
-                <Ionicons name="trash-outline" size={20} color={colors.accent} />
-                <Text style={styles.removeBtnText}>Bölmeyi Boşalt</Text>
-              </Pressable>
+                <View style={{ flexDirection: 'row', gap: spacing.md }}>
+                  {selectedCell.data && selectedCell.data.length > 0 && (
+                    <Pressable style={[styles.saveBtn, { flex: 1, backgroundColor: colors.surfaceVariant }]} onPress={() => setSheetMode('list')}>
+                      <Text style={[styles.saveBtnText, { color: colors.textPrimary }]}>İptal</Text>
+                    </Pressable>
+                  )}
+                  <Pressable style={[styles.saveBtn, { flex: 2 }]} onPress={handleSave}>
+                    <Ionicons name="checkmark" size={20} color={colors.textOnPrimary} />
+                    <Text style={styles.saveBtnText}>Kaydet</Text>
+                  </Pressable>
+                </View>
+              </View>
             )}
           </View>
         )}

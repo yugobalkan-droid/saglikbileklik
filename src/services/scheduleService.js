@@ -82,9 +82,11 @@ export const syncDeviceSchedule = async (patientId) => {
   }
 };
 
-// Bölme ekle/güncelle
+// Bölme ekle/güncelle (Çoklu ilaç desteği için benzersiz ID)
 export const upsertSlot = async (patientId, slotData) => {
-  const slotId = `slot_${slotData.period}_${slotData.day}`;
+  // Eski tekli yapı: `slot_${slotData.period}_${slotData.day}`
+  // Yeni çoklu yapı: `slot_${slotData.period}_${slotData.day}_${Date.now()}`
+  const slotId = slotData.id || `slot_${slotData.period}_${slotData.day}_${Date.now()}`;
   const slotRef = doc(db, 'schedules', patientId, 'slots', slotId);
 
   await setDoc(slotRef, {
@@ -104,9 +106,8 @@ export const upsertSlot = async (patientId, slotData) => {
   return slotId;
 };
 
-// Bölme sil
-export const deleteSlot = async (patientId, period, day) => {
-  const slotId = `slot_${period}_${day}`;
+// Bölme sil (Artık spesifik slotId ile silecek)
+export const deleteSlot = async (patientId, slotId) => {
   const slotRef = doc(db, 'schedules', patientId, 'slots', slotId);
   await deleteDoc(slotRef);
 
@@ -114,7 +115,7 @@ export const deleteSlot = async (patientId, period, day) => {
   await syncDeviceSchedule(patientId);
 };
 
-// Grid formatında dönüştür (ekran için)
+// Grid formatında dönüştür (ekran için) - Hücre başına DIZI (Array) döndürecek
 export const slotsToGrid = (slots) => {
   const grid = {
     0: {}, // Sabah
@@ -124,12 +125,15 @@ export const slotsToGrid = (slots) => {
 
   Object.values(slots).forEach((slot) => {
     if (slot.enabled) {
-      grid[slot.period][slot.day] = {
+      if (!grid[slot.period][slot.day]) {
+        grid[slot.period][slot.day] = [];
+      }
+      grid[slot.period][slot.day].push({
         name: slot.medicationName,
         time: slot.time,
         dosage: slot.dosage,
-        id: slot.id,
-      };
+        id: slot.id, // Kendi benzersiz ID'si
+      });
     }
   });
 
