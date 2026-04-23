@@ -54,7 +54,7 @@ export default function ScheduleScreen() {
         period: selectedCell.period,
         day: selectedCell.day,
         medicationName: medName.trim(),
-        time: medTime || PERIOD_TIMES[selectedCell.period],
+        time: (medTime || PERIOD_TIMES[selectedCell.period]).trim(),
       });
       closeSheet();
     } catch (error) {

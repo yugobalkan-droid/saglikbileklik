@@ -44,6 +44,10 @@ export const onDevicesChanged = (patientId, callback) => {
           createdAt: serverTimestamp()
         }, { merge: true });
         console.log("esp32_medicine_box_01 cihaza patientId eklendi.");
+        
+        // Eşleşme sağlandıktan hemen sonra mevcut programı ESP32'ye gönder
+        const { syncDeviceSchedule } = require('./scheduleService');
+        await syncDeviceSchedule(patientId);
       } catch (error) {
         console.log("Cihaz bağlanırken hata:", error);
       }

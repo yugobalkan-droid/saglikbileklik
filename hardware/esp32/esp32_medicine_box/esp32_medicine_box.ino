@@ -133,8 +133,8 @@ void setup() {
   }
 
   // ── NTP (Saat) Senkronizasyonu ──
-  // Türkiye saati: UTC+3 (Yaz saati uygulaması kalktığı için sabit UTC+3)
-  configTzTime("<+03>-3", "pool.ntp.org", "time.nist.gov");
+  // Türkiye saati: UTC+3
+  configTzTime("TRT-3", "pool.ntp.org", "time.nist.gov");
   Serial.print("[NTP] Saat bekleniyor");
   time_t now = time(nullptr);
   int ntpRetries = 0;
@@ -150,7 +150,7 @@ void setup() {
     Serial.printf("\n[NTP] Saat güncellendi: %02d:%02d\n", timeinfo.tm_hour,
                   timeinfo.tm_min);
   } else {
-    Serial.println("\n[NTP] Saat alınamadı!");
+    Serial.println("\n[NTP] Saat alınamadı! (Geçici çevrimdışı saat)");
   }
 
   // ── Firebase Başlat ──
@@ -175,6 +175,18 @@ void setup() {
    LOOP
    ───────────────────────────────────────────────────────── */
 void loop() {
+  // ── NTP Yedek Kontrolü ve Bilgi Yazdırma ──
+  static unsigned long lastTimePrint = 0;
+  if (millis() - lastTimePrint > 60000) {
+    lastTimePrint = millis();
+    time_t now = time(nullptr);
+    if (now < 24 * 3600) {
+      Serial.println("[NTP] Saat geçersiz, tekrar senkronize ediliyor...");
+      configTzTime("TRT-3", "pool.ntp.org", "time.nist.gov");
+    } else {
+      Serial.println("[ZAMAN] ESP32 Güncel Saat: " + getCurrentTimeStr() + " (Gün: " + getCurrentDayStr() + ")");
+    }
+  }
 
   // ── Alarm Aktifse Sürekli Ötme (Non-blocking) ──
   if (alarmActive) {
