@@ -22,11 +22,11 @@
 #include <Firebase_ESP_Client.h>
 #include <addons/RTDBHelper.h>
 #include <addons/TokenHelper.h>
-#include <ArduinoJson.h> // JSON parse işlemleri için gerekli
+#include <ArduinoJson.h>  // JSON parse işlemleri için gerekli
 #include <RF24.h>
 #include <SPI.h>
 #include <WiFi.h>
-#include <time.h> // NTP Saat işlemleri için
+#include <time.h>  // NTP Saat işlemleri için
 
 /* ─── ESP32-S3 Uyumluluğu ──────────────────────────────── */
 // ESP32-S3 kartlarında VSPI tanımlı değildir, FSPI kullanılır
@@ -45,9 +45,9 @@
 #define USER_PASSWORD "test123"
 
 /* ─── Pin Tanımlamaları ──────────────────────────────────── */
-#define LED_PIN 4     // Uyarı LED'i
-#define BUZZER_PIN 46 // Buzzer
-#define BUTTON_PIN 36 // Buton (ilaç alındı onayı)
+#define LED_PIN 4      // Uyarı LED'i
+#define BUZZER_PIN 46  // Buzzer
+#define BUTTON_PIN 36  // Buton (ilaç alındı onayı)
 
 // NRF24L01 SPI Pinleri
 #define NRF_MOSI 5
@@ -59,7 +59,7 @@
 /* ─── NRF24L01 Kurulumu ──────────────────────────────────── */
 // ESP32-S3 üzerinde SPI kurulumu (FSPI/VSPI)
 SPIClass vspi(VSPI);
-RF24 radio(NRF_CE, NRF_CSN); // CE, CSN
+RF24 radio(NRF_CE, NRF_CSN);  // CE, CSN
 
 // NRF24 haberleşme kanalı (her iki cihazda aynı olmalı)
 const byte address[6] = "ILACK";
@@ -71,14 +71,14 @@ FirebaseConfig config;
 
 /* ─── Zamanlama ──────────────────────────────────────────── */
 unsigned long lastFirebaseCheck = 0;
-const unsigned long FIREBASE_INTERVAL = 15000; // 15 saniyede bir kontrol
+const unsigned long FIREBASE_INTERVAL = 15000;  // 15 saniyede bir kontrol
 
 /* ─── Durum Bayrakları ───────────────────────────────────── */
 String deviceId = "esp32_medicine_box_01";
 bool alarmActive = false;
 bool buttonPressed = false;
 String lastTriggeredAlarmTime =
-    ""; // Aynı dakika içinde defalarca ötmemesi için
+  "";  // Aynı dakika içinde defalarca ötmemesi için
 
 // Sürekli alarm (non-blocking) için değişkenler
 unsigned long lastBeepTime = 0;
@@ -94,7 +94,7 @@ void setup() {
   // Pin modları
   pinMode(LED_PIN, OUTPUT);
   pinMode(BUZZER_PIN, OUTPUT);
-  pinMode(BUTTON_PIN, INPUT_PULLUP); // Buton: LOW = basılı
+  pinMode(BUTTON_PIN, INPUT_PULLUP);  // Buton: LOW = basılı
 
   digitalWrite(LED_PIN, LOW);
   digitalWrite(BUZZER_PIN, LOW);
@@ -112,7 +112,7 @@ void setup() {
     radio.openWritingPipe(address);
     radio.setPALevel(RF24_PA_HIGH);
     radio.setDataRate(RF24_250KBPS);
-    radio.stopListening(); // Bu cihaz verici (TX)
+    radio.stopListening();  // Bu cihaz verici (TX)
     Serial.println("[OK] NRF24L01 hazır.");
   }
 
@@ -129,7 +129,7 @@ void setup() {
     Serial.println("\nWiFi bağlandı: " + WiFi.localIP().toString());
   } else {
     Serial.println(
-        "\n[UYARI] WiFi bağlanamadı, çevrimdışı modda devam ediliyor.");
+      "\n[UYARI] WiFi bağlanamadı, çevrimdışı modda devam ediliyor.");
   }
 
   // ── NTP (Saat) Senkronizasyonu ──
@@ -190,7 +190,7 @@ void loop() {
 
   // ── Buton Kontrolü ──
   if (digitalRead(BUTTON_PIN) == LOW) {
-    delay(50); // Debounce
+    delay(50);  // Debounce
     if (digitalRead(BUTTON_PIN) == LOW) {
       if (!buttonPressed) {
         buttonPressed = true;
@@ -207,8 +207,7 @@ void loop() {
   }
 
   // ── Firebase Periyodik Kontrol ──
-  if (Firebase.ready() && (millis() - lastFirebaseCheck > FIREBASE_INTERVAL ||
-                           lastFirebaseCheck == 0)) {
+  if (Firebase.ready() && (millis() - lastFirebaseCheck > FIREBASE_INTERVAL || lastFirebaseCheck == 0)) {
     lastFirebaseCheck = millis();
     checkFirebaseAlarm();
   }
@@ -279,7 +278,7 @@ void checkFirebaseAlarm() {
       // Haftalık programı parse et
       DynamicJsonDocument schedDoc(2048);
       DeserializationError schedError =
-          deserializeJson(schedDoc, scheduleJSONStr);
+        deserializeJson(schedDoc, scheduleJSONStr);
 
       if (!schedError) {
         // Bugünün saatlerini kontrol et
@@ -386,13 +385,13 @@ void updateDeviceStatus(String status) {
   content.set("fields/signalStrength/stringValue", "strong");
   content.set("fields/radioModule/stringValue", "NRF24L01");
   content.set(
-      "fields/pins/stringValue",
-      "LED:4 | BZR:46 | BTN:36 | CE:15 | CSN:16 | SCK:7 | MOSI:5 | MISO:6");
+    "fields/pins/stringValue",
+    "LED:4 | BZR:46 | BTN:36 | CE:15 | CSN:16 | SCK:7 | MOSI:5 | MISO:6");
 
   String documentPath = "devices/" + deviceId;
   if (Firebase.Firestore.patchDocument(
-          &fbdo, PROJECT_ID, "", documentPath.c_str(), content.raw(),
-          "status,type,batteryLevel,signalStrength,radioModule,pins")) {
+        &fbdo, PROJECT_ID, "", documentPath.c_str(), content.raw(),
+        "status,type,batteryLevel,signalStrength,radioModule,pins")) {
     Serial.println("[Firebase] Cihaz durumu güncellendi: " + status);
   } else {
     Serial.println("[Firebase] Güncelleme hatası: " + fbdo.errorReason());

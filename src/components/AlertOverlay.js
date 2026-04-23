@@ -35,66 +35,64 @@ export default function AlertOverlay({ visible, onClose, patientName, medication
       onRequestClose={onClose}
       statusBarTranslucent
     >
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <View style={styles.overlay}>
-          <View style={styles.card}>
-            {/* Alert Icon */}
-            <View style={styles.iconContainer}>
-              <View style={styles.iconPulseOuter} />
-              <View style={styles.iconPulseInner} />
-              <View style={styles.iconBg}>
-                <Ionicons name="alert" size={36} color={colors.textOnAccent} />
-              </View>
+      <View style={styles.overlay}>
+        <View style={styles.card}>
+          {/* Alert Icon */}
+          <View style={styles.iconContainer}>
+            <View style={styles.iconPulseOuter} />
+            <View style={styles.iconPulseInner} />
+            <View style={styles.iconBg}>
+              <Ionicons name="alert" size={36} color={colors.textOnAccent} />
             </View>
-
-            {/* Alert Content */}
-            <Text style={styles.alertTitle}>İlaç Alınmadı!</Text>
-            <Text style={styles.alertSubtitle}>
-              {patientName || 'Hasta'}, belirlenen süre içinde ilacını almadı.
-            </Text>
-
-            {/* Medication Info */}
-            <View style={styles.medInfo}>
-              <View style={styles.medInfoRow}>
-                <Ionicons name="medical-outline" size={18} color={colors.accent} />
-                <Text style={styles.medInfoLabel}>İlaç:</Text>
-                <Text style={styles.medInfoValue}>{medication || 'Aspirin 100mg'}</Text>
-              </View>
-              <View style={styles.medInfoRow}>
-                <Ionicons name="cube-outline" size={18} color={colors.accent} />
-                <Text style={styles.medInfoLabel}>Bölme:</Text>
-                <Text style={styles.medInfoValue}>{compartment || 'Bölme 2'}</Text>
-              </View>
-              <View style={styles.medInfoRow}>
-                <Ionicons name="time-outline" size={18} color={colors.accent} />
-                <Text style={styles.medInfoLabel}>Planlanan:</Text>
-                <Text style={styles.medInfoValue}>{time || '14:00'}</Text>
-              </View>
-              <View style={styles.medInfoRow}>
-                <Ionicons name="hourglass-outline" size={18} color={colors.error} />
-                <Text style={styles.medInfoLabel}>Gecikme:</Text>
-                <Text style={[styles.medInfoValue, { color: colors.error }]}>30+ dakika</Text>
-              </View>
-            </View>
-
-            {/* Action Buttons */}
-            <Pressable style={styles.primaryBtn} onPress={handleCall}>
-              <Ionicons name="call" size={20} color={colors.textOnPrimary} />
-              <Text style={styles.primaryBtnText}>Hastayı Ara</Text>
-            </Pressable>
-
-            <Pressable style={styles.secondaryBtn} onPress={handleResend}>
-              <Ionicons name="notifications" size={20} color={colors.primary} />
-              <Text style={styles.secondaryBtnText}>Hatırlatıcıyı Tekrar Gönder</Text>
-            </Pressable>
-
-            <Pressable style={styles.tertiaryBtn} onPress={onClose}>
-              <Ionicons name="volume-mute" size={20} color={colors.textSecondary} />
-              <Text style={styles.tertiaryBtnText}>Sustur</Text>
-            </Pressable>
           </View>
+
+          {/* Alert Content */}
+          <Text style={styles.alertTitle}>İlaç Alınmadı!</Text>
+          <Text style={styles.alertSubtitle}>
+            {patientName || 'Hasta'}, belirlenen süre içinde ilacını almadı.
+          </Text>
+
+          {/* Medication Info */}
+          <View style={styles.medInfo}>
+            <View style={styles.medInfoRow}>
+              <Ionicons name="medical-outline" size={18} color={colors.accent} />
+              <Text style={styles.medInfoLabel}>İlaç:</Text>
+              <Text style={styles.medInfoValue}>{medication || 'Aspirin 100mg'}</Text>
+            </View>
+            <View style={styles.medInfoRow}>
+              <Ionicons name="cube-outline" size={18} color={colors.accent} />
+              <Text style={styles.medInfoLabel}>Bölme:</Text>
+              <Text style={styles.medInfoValue}>{compartment || 'Bölme 2'}</Text>
+            </View>
+            <View style={styles.medInfoRow}>
+              <Ionicons name="time-outline" size={18} color={colors.accent} />
+              <Text style={styles.medInfoLabel}>Planlanan:</Text>
+              <Text style={styles.medInfoValue}>{time || '14:00'}</Text>
+            </View>
+            <View style={styles.medInfoRow}>
+              <Ionicons name="hourglass-outline" size={18} color={colors.error} />
+              <Text style={styles.medInfoLabel}>Gecikme:</Text>
+              <Text style={[styles.medInfoValue, { color: colors.error }]}>30+ dakika</Text>
+            </View>
+          </View>
+
+          {/* Action Buttons */}
+          <Pressable style={styles.primaryBtn} onPress={handleCall}>
+            <Ionicons name="call" size={20} color={colors.textOnPrimary} />
+            <Text style={styles.primaryBtnText}>Hastayı Ara</Text>
+          </Pressable>
+
+          <Pressable style={styles.secondaryBtn} onPress={handleResend}>
+            <Ionicons name="notifications" size={20} color={colors.primary} />
+            <Text style={styles.secondaryBtnText}>Hatırlatıcıyı Tekrar Gönder</Text>
+          </Pressable>
+
+          <Pressable style={styles.tertiaryBtn} onPress={onClose}>
+            <Ionicons name="volume-mute" size={20} color={colors.textSecondary} />
+            <Text style={styles.tertiaryBtnText}>Sustur</Text>
+          </Pressable>
         </View>
-      </GestureHandlerRootView>
+      </View>
     </Modal>
   );
 }

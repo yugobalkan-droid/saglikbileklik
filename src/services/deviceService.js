@@ -30,8 +30,25 @@ export const onDevicesChanged = (patientId, callback) => {
     where('patientId', '==', patientId)
   );
 
-  return onSnapshot(q, (snapshot) => {
-    const devices = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  return onSnapshot(q, async (snapshot) => {
+    let devices = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    
+    // Eğer hastaya ait kutu bulunamadıysa, ESP32'nin varsayılan ID'sini ('esp32_medicine_box_01') bu hastaya bağla
+    if (!devices.find(d => d.type === 'box')) {
+      try {
+        const defaultBoxRef = doc(db, COLLECTION, 'esp32_medicine_box_01');
+        await setDoc(defaultBoxRef, {
+          patientId: patientId,
+          type: 'box',
+          status: 'offline', // ESP32 açılınca online yapacak
+          createdAt: serverTimestamp()
+        }, { merge: true });
+        console.log("esp32_medicine_box_01 cihaza patientId eklendi.");
+      } catch (error) {
+        console.log("Cihaz bağlanırken hata:", error);
+      }
+    }
+    
     callback(devices);
   });
 };
