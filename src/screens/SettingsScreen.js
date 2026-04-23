@@ -317,6 +317,20 @@ export default function SettingsScreen() {
     }
   };
 
+  // ESP32 Test Sinyali Durdur
+  const handleStopTestESP32 = async () => {
+    try {
+      const boxRef = doc(db, 'devices', 'esp32_medicine_box_01');
+      await updateDoc(boxRef, {
+        triggerAlert: false,
+        updatedAt: serverTimestamp()
+      });
+      Alert.alert('Test Durduruldu', 'ESP32 cihazına testi durdurma sinyali gönderildi! LED ve alarm kapanacaktır.');
+    } catch (error) {
+      Alert.alert('Hata', 'Test durdurma sinyali gönderilemedi. Hata: ' + error.message);
+    }
+  };
+
   if (loggingOut) {
     return (
       <View style={styles.loadingContainer}>
@@ -420,6 +434,16 @@ export default function SettingsScreen() {
             iconBg={colors.warningSurface}
             iconColor={colors.warning}
             onPress={handleTestESP32}
+            hasChevron={false}
+          />
+          <View style={styles.divider} />
+          <SettingsItem
+            icon="stop-circle-outline"
+            title="ESP32 Testini Bitir"
+            subtitle="Çalan test alarmını anında susturur"
+            iconBg={colors.errorSurface}
+            iconColor={colors.error}
+            onPress={handleStopTestESP32}
             hasChevron={false}
           />
         </View>

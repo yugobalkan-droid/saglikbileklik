@@ -40,7 +40,7 @@ export const onDevicesChanged = (patientId, callback) => {
         await setDoc(defaultBoxRef, {
           patientId: patientId,
           type: 'box',
-          status: 'offline', // ESP32 açılınca online yapacak
+          // status alanını ezmiyoruz; ESP32 açıksa zaten 'online' yapmıştır
           createdAt: serverTimestamp()
         }, { merge: true });
         console.log("esp32_medicine_box_01 cihaza patientId eklendi.");
