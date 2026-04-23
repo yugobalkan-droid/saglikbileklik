@@ -88,7 +88,8 @@ export default function DashboardScreen({ navigation }) {
     if (!user) return;
     setSeeding(true);
     try {
-      await seedDemoData(user.uid);
+      const pId = await seedDemoData(user.uid);
+      setPatientId(pId);
       Alert.alert('Başarılı', 'Demo veriler yüklendi! Uygulama güncellenecek.');
     } catch (error) {
       Alert.alert('Hata', 'Demo veriler yüklenirken hata oluştu: ' + error.message);

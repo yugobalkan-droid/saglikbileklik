@@ -69,21 +69,29 @@ export function PatientProvider({ children }) {
     );
 
     // Bugünün ilaç logları
-    unsubscribers.push(
-      onTodayLogsChanged(patientId, (logs) => {
-        setTodayLogs(logs);
-        setTodayStats(getTodayStats(logs));
-        setNextMedication(getNextMedication(logs));
-      })
-    );
+    try {
+      unsubscribers.push(
+        onTodayLogsChanged(patientId, (logs) => {
+          setTodayLogs(logs);
+          setTodayStats(getTodayStats(logs));
+          setNextMedication(getNextMedication(logs));
+        })
+      );
+    } catch (error) {
+      console.warn('İlaç logları dinleyicisi başlatılamadı (Firestore index gerekebilir):', error);
+    }
 
     // Bildirimler
-    unsubscribers.push(
-      onAlertsChanged(patientId, (alertData) => {
-        setAlerts(alertData);
-        setUnreadCount(getUnreadCount(alertData));
-      })
-    );
+    try {
+      unsubscribers.push(
+        onAlertsChanged(patientId, (alertData) => {
+          setAlerts(alertData);
+          setUnreadCount(getUnreadCount(alertData));
+        })
+      );
+    } catch (error) {
+      console.warn('Bildirim dinleyicisi başlatılamadı (Firestore index gerekebilir):', error);
+    }
 
     // Haftalık program
     unsubscribers.push(
@@ -92,7 +100,9 @@ export function PatientProvider({ children }) {
       })
     );
 
-    return () => unsubscribers.forEach((unsub) => unsub());
+    return () => unsubscribers.forEach((unsub) => {
+      if (typeof unsub === 'function') unsub();
+    });
   }, [patientId]);
 
   const value = {

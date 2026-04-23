@@ -5,8 +5,10 @@ import {
   StyleSheet,
   TouchableOpacity,
   Modal,
-  Pressable,
-  Animated,
+  TouchableWithoutFeedback,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
   Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,8 +24,16 @@ export default function BottomSheet({ visible, onClose, title, children }) {
       animationType="slide"
       onRequestClose={onClose}
     >
-      <View style={styles.overlay}>
-        <Pressable style={styles.backdrop} onPress={onClose} />
+      <KeyboardAvoidingView
+        style={styles.overlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        {/* Backdrop — yalnızca arkaplana basıldığında kapanır */}
+        <TouchableWithoutFeedback onPress={onClose}>
+          <View style={styles.backdrop} />
+        </TouchableWithoutFeedback>
+
+        {/* Sheet içeriği — kendi dokunma olaylarını yakalar */}
         <View style={styles.sheet}>
           <View style={styles.handle} />
           <View style={styles.header}>
@@ -32,9 +42,17 @@ export default function BottomSheet({ visible, onClose, title, children }) {
               <Ionicons name="close" size={24} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
-          <View style={styles.content}>{children}</View>
+          <ScrollView
+            style={styles.scrollContent}
+            contentContainerStyle={styles.scrollContentContainer}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            bounces={false}
+          >
+            {children}
+          </ScrollView>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -45,7 +63,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',
   },
   sheet: {
@@ -53,7 +71,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: borderRadius.xxl,
     borderTopRightRadius: borderRadius.xxl,
     paddingBottom: spacing.xxxl,
-    maxHeight: SCREEN_HEIGHT * 0.7,
+    maxHeight: SCREEN_HEIGHT * 0.8,
     ...shadows.xl,
   },
   handle: {
@@ -75,6 +93,7 @@ const styles = StyleSheet.create({
   title: {
     ...typography.headlineMedium,
     color: colors.textPrimary,
+    flex: 1,
   },
   closeBtn: {
     width: 36,
@@ -83,8 +102,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceVariant,
     justifyContent: 'center',
     alignItems: 'center',
+    marginLeft: spacing.md,
   },
-  content: {
+  scrollContent: {
+    flexGrow: 0,
+  },
+  scrollContentContainer: {
     paddingHorizontal: spacing.xxl,
+    paddingBottom: spacing.md,
   },
 });
