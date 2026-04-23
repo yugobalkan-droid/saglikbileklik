@@ -327,7 +327,7 @@ export default function DashboardScreen({ navigation }) {
                   <Text style={styles.sheetOptionDesc}>Test için örnek veriler oluştur</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-              </Pressable>
+              </TouchableOpacity>
             </>
           )}
         </View>
