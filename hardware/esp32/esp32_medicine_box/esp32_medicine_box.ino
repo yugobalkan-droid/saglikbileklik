@@ -307,11 +307,21 @@ void checkFirebaseAlarm() {
         // Bugünün saatlerini kontrol et
         JsonArray todayAlarms = schedDoc[currentDay];
         bool shouldAlarm = false;
-        for (JsonVariant value : todayAlarms) {
-          if (value.as<String>() == currentTime) {
-            shouldAlarm = true;
-            break;
-          }
+        
+        Serial.println("[DEBUG] İncelenen Gün: " + currentDay + " | Mevcut Saat: " + currentTime);
+        Serial.print("[DEBUG] Bu Gün İçin Ayarlı Saatler: ");
+        
+        if (todayAlarms.isNull() || todayAlarms.size() == 0) {
+           Serial.println("(Hiç alarm yok)");
+        } else {
+           for (JsonVariant value : todayAlarms) {
+             String alarmTime = value.as<String>();
+             Serial.print(alarmTime + " ");
+             if (alarmTime == currentTime) {
+               shouldAlarm = true;
+             }
+           }
+           Serial.println("");
         }
 
         if (shouldAlarm) {
@@ -320,6 +330,13 @@ void checkFirebaseAlarm() {
             Serial.println("[ALARM] Programlanan saat geldi: " + currentTime);
             lastTriggeredAlarmTime = currentTime;
             triggerAlarm();
+          } else if (lastTriggeredAlarmTime == currentTime) {
+            Serial.println("[DEBUG] Alarm bu dakika içinde zaten tetiklendi.");
+          }
+        } else {
+          // Eğer şu anki dakika alarm dakikası değilse, önceki tetiklenme bilgisini sıfırla ki yarın tekrar çalabilelim
+          if (lastTriggeredAlarmTime != "") {
+             lastTriggeredAlarmTime = "";
           }
         }
       } else {
@@ -372,6 +389,25 @@ void triggerAlarm() {
 
   // NRF24 ile bilekliğe sinyal gönder
   sendNRFSignal();
+  
+  // Mobil uygulamaya "Alarm Çaldı" bilgisini gönder
+  sendAlertToApp();
+}
+
+// Uygulamaya otonom alarmın başladığını haber ver (AlertOverlay çıkması için)
+void sendAlertToApp() {
+  if (Firebase.ready()) {
+    FirebaseJson content;
+    // Uygulama bu alanın güncellendiğini görünce lokal bildirim/AlertOverlay çıkartabilir
+    content.set("fields/lastAutonomousAlarm/stringValue", getCurrentTimeStr());
+    
+    String documentPath = "devices/" + deviceId;
+    if (Firebase.Firestore.patchDocument(&fbdo, PROJECT_ID, "",
+                                         documentPath.c_str(), content.raw(),
+                                         "lastAutonomousAlarm")) {
+      Serial.println("[Firebase] Uygulamaya bildirim gönderildi (lastAutonomousAlarm güncellendi).");
+    }
+  }
 }
 
 // Alarm durdur

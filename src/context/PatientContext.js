@@ -26,6 +26,8 @@ export function PatientProvider({ children }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [scheduleGrid, setScheduleGrid] = useState({ 0: {}, 1: {}, 2: {} });
   const [loading, setLoading] = useState(true);
+  
+  const lastAlarmRef = React.useRef(null);
 
   // İlk yükleme: bakıcının hastasını bul
   useEffect(() => {
@@ -63,8 +65,31 @@ export function PatientProvider({ children }) {
 
     // Cihaz durumu
     unsubscribers.push(
-      onDevicesChanged(patientId, (devices) => {
+      onDevicesChanged(patientId, async (devices) => {
         setDeviceStatus(formatDeviceStatus(devices));
+
+        // Otonom alarm kontrolü
+        const box = devices.find(d => d.type === 'box');
+        if (box && box.lastAutonomousAlarm) {
+          if (lastAlarmRef.current !== box.lastAutonomousAlarm) {
+            // İlk yükleme değilse ve alarm zamanı değiştiyse uygulamada bildirim oluştur
+            if (lastAlarmRef.current !== null) {
+               try {
+                 const { createAlert } = require('../services/alertService');
+                 await createAlert({
+                   patientId: patientId,
+                   type: 'missed', // Ekranda AlertOverlay çıkması için 'missed' tipinde
+                   title: 'ESP32 Alarmı!',
+                   message: `İlaç kutusunda ${box.lastAutonomousAlarm} alarmı tetiklendi.`,
+                   time: box.lastAutonomousAlarm,
+                 });
+               } catch(e) {
+                 console.log("Otonom bildirim oluşturulamadı", e);
+               }
+            }
+            lastAlarmRef.current = box.lastAutonomousAlarm;
+          }
+        }
       })
     );
 

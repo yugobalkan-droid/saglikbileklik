@@ -49,16 +49,33 @@ export default function ScheduleScreen() {
       return;
     }
 
+    // Saati düzgün formata çevir (Örn: "8:00" -> "08:00")
+    let formattedTime = (medTime || PERIOD_TIMES[selectedCell.period]).trim();
+    if (formattedTime.length === 4 && formattedTime.charAt(1) === ':') {
+      formattedTime = '0' + formattedTime;
+    }
+
     try {
       await upsertSlot(patientId, {
         period: selectedCell.period,
         day: selectedCell.day,
         medicationName: medName.trim(),
-        time: (medTime || PERIOD_TIMES[selectedCell.period]).trim(),
+        time: formattedTime,
       });
       closeSheet();
     } catch (error) {
       Alert.alert('Hata', 'Kayıt sırasında hata oluştu: ' + error.message);
+    }
+  };
+
+  const handleForceSync = async () => {
+    if (!patientId) return;
+    try {
+      const { syncDeviceSchedule } = require('../services/scheduleService');
+      await syncDeviceSchedule(patientId);
+      Alert.alert('Başarılı', 'Program ESP32 cihazına zorla senkronize edildi!');
+    } catch (error) {
+      Alert.alert('Hata', 'Senkronizasyon hatası: ' + error.message);
     }
   };
 
@@ -113,16 +130,21 @@ export default function ScheduleScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text style={styles.title}>İlaç Planı</Text>
-          <Text style={styles.subtitle}>21 Bölmeli Haftalık Program</Text>
+          <Text style={styles.title}>Haftalık İlaç Planı</Text>
+          <TouchableOpacity 
+            style={{backgroundColor: colors.accent, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, flexDirection: 'row', alignItems: 'center'}} 
+            onPress={handleForceSync}
+          >
+            <Ionicons name="sync-outline" size={16} color="white" style={{marginRight: 4}} />
+            <Text style={{color: 'white', fontWeight: 'bold'}}>Senkronize Et</Text>
+          </TouchableOpacity>
         </View>
+
+        <Text style={styles.subtitle}>
+          İlaç eklemek veya düzenlemek için tablodaki hücrelere dokunun.
+        </Text>
 
         {/* Legend */}
         <View style={styles.legend}>
