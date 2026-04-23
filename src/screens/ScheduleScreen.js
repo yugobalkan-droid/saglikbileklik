@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Pressable,
   Platform,
   TextInput,
   Alert,
@@ -278,16 +279,16 @@ export default function ScheduleScreen() {
               placeholderTextColor={colors.textTertiary}
             />
 
-            <TouchableOpacity style={styles.saveBtn} onPress={handleSave} activeOpacity={0.85}>
+            <Pressable style={styles.saveBtn} onPress={handleSave}>
               <Ionicons name="checkmark" size={20} color={colors.textOnPrimary} />
               <Text style={styles.saveBtnText}>Kaydet</Text>
-            </TouchableOpacity>
+            </Pressable>
 
             {selectedCell.data && (
-              <TouchableOpacity style={styles.removeBtn} onPress={handleDelete} activeOpacity={0.85}>
+              <Pressable style={styles.removeBtn} onPress={handleDelete}>
                 <Ionicons name="trash-outline" size={20} color={colors.accent} />
                 <Text style={styles.removeBtnText}>Bölmeyi Boşalt</Text>
-              </TouchableOpacity>
+              </Pressable>
             )}
           </View>
         )}

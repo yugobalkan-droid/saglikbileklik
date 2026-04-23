@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Pressable,
   Platform,
   Switch,
   Alert,
@@ -525,7 +526,7 @@ export default function SettingsScreen() {
             </View>
           </View>
 
-          <TouchableOpacity
+          <Pressable
             style={[styles.saveBtn, savingPatient && { opacity: 0.7 }]}
             onPress={handleAddPatient}
             disabled={savingPatient}
@@ -535,7 +536,7 @@ export default function SettingsScreen() {
             ) : (
               <Text style={styles.saveBtnText}>Kaydet ve Başla</Text>
             )}
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </BottomSheet>
 
@@ -560,7 +561,7 @@ export default function SettingsScreen() {
             <Text style={styles.infoRowText}>{email}</Text>
           </View>
 
-          <TouchableOpacity
+          <Pressable
             style={[styles.saveBtn, savingProfile && { opacity: 0.7 }]}
             onPress={handleSaveProfile}
             disabled={savingProfile}
@@ -570,7 +571,7 @@ export default function SettingsScreen() {
             ) : (
               <Text style={styles.saveBtnText}>Güncelle</Text>
             )}
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </BottomSheet>
 
@@ -617,7 +618,7 @@ export default function SettingsScreen() {
             </View>
           </View>
 
-          <TouchableOpacity
+          <Pressable
             style={[styles.saveBtn, savingEditPatient && { opacity: 0.7 }]}
             onPress={handleSaveEditPatient}
             disabled={savingEditPatient}
@@ -627,7 +628,7 @@ export default function SettingsScreen() {
             ) : (
               <Text style={styles.saveBtnText}>Güncelle</Text>
             )}
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </BottomSheet>
 
@@ -673,7 +674,7 @@ export default function SettingsScreen() {
             editable={!savingEmergency}
           />
 
-          <TouchableOpacity
+          <Pressable
             style={[styles.saveBtn, savingEmergency && { opacity: 0.7 }]}
             onPress={handleSaveEmergency}
             disabled={savingEmergency}
@@ -683,7 +684,7 @@ export default function SettingsScreen() {
             ) : (
               <Text style={styles.saveBtnText}>Kişiyi Kaydet</Text>
             )}
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </BottomSheet>
 
@@ -824,7 +825,7 @@ export default function SettingsScreen() {
             İlaç alınmadığında kaç dakika sonra tekrar uyarı gönderilsin?
           </Text>
           {delayOptions.map((opt) => (
-            <TouchableOpacity
+            <Pressable
               key={opt.value}
               style={[styles.selectOption, selectedDelay === opt.value && styles.selectOptionActive]}
               onPress={() => {
@@ -838,7 +839,7 @@ export default function SettingsScreen() {
               {selectedDelay === opt.value && (
                 <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
               )}
-            </TouchableOpacity>
+            </Pressable>
           ))}
         </View>
       </BottomSheet>
@@ -854,7 +855,7 @@ export default function SettingsScreen() {
             { value: 'light', label: 'Açık Mod', icon: 'sunny-outline' },
             { value: 'dark', label: 'Koyu Mod', icon: 'moon-outline' },
           ].map((opt) => (
-            <TouchableOpacity
+            <Pressable
               key={opt.value}
               style={[styles.selectOption, selectedTheme === opt.value && styles.selectOptionActive]}
               onPress={() => {
@@ -874,7 +875,7 @@ export default function SettingsScreen() {
               {selectedTheme === opt.value && (
                 <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
               )}
-            </TouchableOpacity>
+            </Pressable>
           ))}
         </View>
       </BottomSheet>
@@ -890,7 +891,7 @@ export default function SettingsScreen() {
             { value: 'tr', label: 'Türkçe', flag: '🇹🇷' },
             { value: 'en', label: 'English', flag: '🇬🇧' },
           ].map((opt) => (
-            <TouchableOpacity
+            <Pressable
               key={opt.value}
               style={[styles.selectOption, selectedLang === opt.value && styles.selectOptionActive]}
               onPress={() => {
@@ -910,7 +911,7 @@ export default function SettingsScreen() {
               {selectedLang === opt.value && (
                 <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
               )}
-            </TouchableOpacity>
+            </Pressable>
           ))}
         </View>
       </BottomSheet>

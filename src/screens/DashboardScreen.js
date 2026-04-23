@@ -6,6 +6,7 @@ import {
   ScrollView,
   StatusBar,
   TouchableOpacity,
+  Pressable,
   Platform,
   Alert,
   TextInput,
@@ -270,7 +271,10 @@ export default function DashboardScreen({ navigation }) {
         title="Yeni Hatırlatıcı"
       >
         <View style={styles.sheetContent}>
-          <TouchableOpacity style={styles.sheetOption}>
+          <Pressable style={styles.sheetOption} onPress={() => {
+            setShowAddSheet(false);
+            navigation.navigate('Schedule');
+          }}>
             <View style={[styles.sheetOptionIcon, { backgroundColor: colors.primarySurface }]}>
               <Ionicons name="medical" size={22} color={colors.primary} />
             </View>
@@ -279,9 +283,9 @@ export default function DashboardScreen({ navigation }) {
               <Text style={styles.sheetOptionDesc}>Yeni bir ilaç hatırlatıcısı oluştur</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-          </TouchableOpacity>
+          </Pressable>
 
-          <TouchableOpacity style={styles.sheetOption} onPress={() => {
+          <Pressable style={styles.sheetOption} onPress={() => {
             setShowAddSheet(false);
             navigation.navigate('Schedule');
           }}>
@@ -293,11 +297,11 @@ export default function DashboardScreen({ navigation }) {
               <Text style={styles.sheetOptionDesc}>Haftalık ilaç programını düzenle</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-          </TouchableOpacity>
+          </Pressable>
 
           {!patient && (
             <>
-              <TouchableOpacity style={styles.sheetOption} onPress={() => {
+              <Pressable style={styles.sheetOption} onPress={() => {
                 setShowAddSheet(false);
                 setShowPatientSheet(true);
               }}>
@@ -309,9 +313,9 @@ export default function DashboardScreen({ navigation }) {
                   <Text style={styles.sheetOptionDesc}>Yeni hasta tanımlayın</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-              </TouchableOpacity>
+              </Pressable>
 
-              <TouchableOpacity style={styles.sheetOption} onPress={() => {
+              <Pressable style={styles.sheetOption} onPress={() => {
                 setShowAddSheet(false);
                 handleSeedData();
               }}>
@@ -323,7 +327,7 @@ export default function DashboardScreen({ navigation }) {
                   <Text style={styles.sheetOptionDesc}>Test için örnek veriler oluştur</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-              </TouchableOpacity>
+              </Pressable>
             </>
           )}
         </View>
@@ -376,7 +380,7 @@ export default function DashboardScreen({ navigation }) {
             </View>
           </View>
 
-          <TouchableOpacity
+          <Pressable
             style={[styles.savePatientBtn, savingPatient && { opacity: 0.7 }]}
             onPress={handleAddPatient}
             disabled={savingPatient}
@@ -389,7 +393,7 @@ export default function DashboardScreen({ navigation }) {
                 <Text style={styles.savePatientBtnText}>Kaydet ve Başla</Text>
               </>
             )}
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </BottomSheet>
     </View>

@@ -3,56 +3,67 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   Modal,
   TouchableWithoutFeedback,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   Dimensions,
+  Pressable,
 } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius, shadows } from '../theme';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function BottomSheet({ visible, onClose, title, children }) {
+  if (!visible) return null;
+
   return (
     <Modal
       visible={visible}
       transparent
       animationType="slide"
       onRequestClose={onClose}
+      statusBarTranslucent
     >
-      <KeyboardAvoidingView
-        style={styles.overlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        {/* Backdrop — yalnızca arkaplana basıldığında kapanır */}
-        <TouchableWithoutFeedback onPress={onClose}>
-          <View style={styles.backdrop} />
-        </TouchableWithoutFeedback>
+      {/* 
+        ÖNEMLİ: Modal, Android'de yeni bir native pencere oluşturur.
+        GestureHandlerRootView olmadan, TouchableOpacity gibi
+        dokunma bileşenleri çalışmaz. Bu yüzden Modal içinde
+        tekrar GestureHandlerRootView ile sarmalıyoruz.
+      */}
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <KeyboardAvoidingView
+          style={styles.overlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          {/* Backdrop — sadece arkaplana basıldığında kapanır */}
+          <Pressable style={styles.backdrop} onPress={onClose} />
 
-        {/* Sheet içeriği — kendi dokunma olaylarını yakalar */}
-        <View style={styles.sheet}>
-          <View style={styles.handle} />
-          <View style={styles.header}>
-            <Text style={styles.title}>{title}</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <Ionicons name="close" size={24} color={colors.textSecondary} />
-            </TouchableOpacity>
+          {/* Sheet içeriği */}
+          <View style={styles.sheet}>
+            <View style={styles.handle} />
+            <View style={styles.header}>
+              <Text style={styles.title}>{title}</Text>
+              <Pressable onPress={onClose} style={styles.closeBtn}>
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
+              </Pressable>
+            </View>
+            <ScrollView
+              style={styles.scrollContent}
+              contentContainerStyle={styles.scrollContentContainer}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              bounces={false}
+              nestedScrollEnabled
+            >
+              {children}
+            </ScrollView>
           </View>
-          <ScrollView
-            style={styles.scrollContent}
-            contentContainerStyle={styles.scrollContentContainer}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            bounces={false}
-          >
-            {children}
-          </ScrollView>
-        </View>
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
@@ -71,7 +82,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: borderRadius.xxl,
     borderTopRightRadius: borderRadius.xxl,
     paddingBottom: spacing.xxxl,
-    maxHeight: SCREEN_HEIGHT * 0.8,
+    maxHeight: SCREEN_HEIGHT * 0.85,
     ...shadows.xl,
   },
   handle: {
