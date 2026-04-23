@@ -165,8 +165,6 @@ export default function DashboardScreen({ navigation }) {
     setSavingPatient(false);
   };
 
-  const timelineData = getTimelineData();
-
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
