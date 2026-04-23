@@ -64,26 +64,19 @@ export const syncDeviceSchedule = async (patientId) => {
 
     const scheduleJSON = JSON.stringify(scheduleData);
 
-    // 3. Hastanın cihazlarını bul (Composite index hatasını önlemek için type filtrelemesini kodda yapıyoruz)
-    const devicesRef = collection(db, 'devices');
-    const q = query(devicesRef, where('patientId', '==', patientId));
-    const deviceSnap = await getDocs(q);
-
-    // Kutuyu bul
-    const boxDoc = deviceSnap.docs.find(doc => doc.data().type === 'box');
-
-    if (boxDoc) {
-      // 4. Cihaz belgesini güncelle
-      const deviceId = boxDoc.id;
-      const deviceRef = doc(db, 'devices', deviceId);
-      await setDoc(deviceRef, {
-        scheduleJSON: scheduleJSON,
-        updatedAt: serverTimestamp()
-      }, { merge: true });
-      console.log(`[Sync] Device ${deviceId} scheduleJSON updated.`);
-    } else {
-      console.log("[Sync] Hastaya ait 'box' cihazı bulunamadı.");
-    }
+    // 3. Doğrudan ESP32 cihazının sabit ID'sine yaz (Farklı hasta ID'si çakışmasını kökten çözmek için)
+    const deviceId = 'esp32_medicine_box_01';
+    const deviceRef = doc(db, 'devices', deviceId);
+    
+    await setDoc(deviceRef, {
+      scheduleJSON: scheduleJSON,
+      updatedAt: serverTimestamp(),
+      patientId: patientId, // Cihazın hastaya ait olduğundan kesinlikle emin ol
+      type: 'box'
+    }, { merge: true });
+    
+    console.log(`[Sync] Device ${deviceId} scheduleJSON güncellendi: `, scheduleJSON);
+    
   } catch (error) {
     console.error("Cihaz senkronizasyon hatası:", error);
   }

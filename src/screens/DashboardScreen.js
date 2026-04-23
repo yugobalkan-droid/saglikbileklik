@@ -55,32 +55,40 @@ export default function DashboardScreen({ navigation }) {
   const monthNames = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
   const todayStr = `${today.getDate()} ${monthNames[today.getMonth()]} ${today.getFullYear()}, ${dayNames[today.getDay()]}`;
 
-  // Timeline verilerini loglardan oluştur
+  // Timeline verilerini loglardan ve scheduleGrid'den oluştur
   const getTimelineData = () => {
-    if (!todayLogs || todayLogs.length === 0) {
-      // Henüz log yoksa varsayılan göster
-      return PERIOD_NAMES.map((name, idx) => ({
-        id: String(idx),
-        time: PERIOD_TIMES[idx],
-        title: name,
-        status: 'upcoming',
-        isNext: idx === 0,
-        medications: [],
-      }));
+    const todayIndex = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1;
+
+    // Eğer log varsa loglardan al
+    if (todayLogs && todayLogs.length > 0) {
+      return todayLogs.map((log, idx) => {
+        const scheduledTime = log.scheduledTime?.toDate?.() || new Date();
+        const hours = scheduledTime.getHours().toString().padStart(2, '0');
+        const mins = scheduledTime.getMinutes().toString().padStart(2, '0');
+
+        return {
+          id: log.id,
+          time: `${hours}:${mins}`,
+          title: PERIOD_NAMES[log.period] || 'İlaç',
+          status: log.status === 'taken' ? 'completed' : log.status === 'missed' ? 'missed' : 'upcoming',
+          isNext: log.status === 'pending' && idx === todayLogs.findIndex((l) => l.status === 'pending'),
+          medications: [{ name: log.medicationName, dose: log.dosage || '1 doz' }],
+        };
+      });
     }
 
-    return todayLogs.map((log, idx) => {
-      const scheduledTime = log.scheduledTime?.toDate?.() || new Date();
-      const hours = scheduledTime.getHours().toString().padStart(2, '0');
-      const mins = scheduledTime.getMinutes().toString().padStart(2, '0');
-
+    // Log yoksa scheduleGrid üzerinden bugünün programını göster
+    return PERIOD_NAMES.map((name, idx) => {
+      const cellData = scheduleGrid[idx]?.[todayIndex];
+      const hasMed = !!cellData;
+      
       return {
-        id: log.id,
-        time: `${hours}:${mins}`,
-        title: PERIOD_NAMES[log.period] || 'İlaç',
-        status: log.status === 'taken' ? 'completed' : log.status === 'missed' ? 'missed' : 'upcoming',
-        isNext: log.status === 'pending' && idx === todayLogs.findIndex((l) => l.status === 'pending'),
-        medications: [{ name: log.medicationName, dose: log.dosage || '1 doz' }],
+        id: String(idx),
+        time: cellData?.time || PERIOD_TIMES[idx],
+        title: name,
+        status: 'upcoming',
+        isNext: hasMed, // Gerçekçi olmak için hasMed durumunda isNext diyebiliriz
+        medications: hasMed ? [{ name: cellData.medicationName || cellData.name, dose: cellData.dosage || '1 doz' }] : [],
       };
     });
   };

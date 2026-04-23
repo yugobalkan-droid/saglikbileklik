@@ -298,24 +298,30 @@ void checkFirebaseAlarm() {
         clearTriggerAlert();
       }
     } else if (scheduleJSONStr != "" && currentTime != "" && currentDay != "") {
+      Serial.println("\n[DEBUG] ---------------------------------------");
+      Serial.println("[DEBUG] Firebase'den Gelen Ham JSON:");
+      Serial.println(scheduleJSONStr);
+      Serial.println("[DEBUG] ---------------------------------------");
+      
       // Haftalık programı parse et
       DynamicJsonDocument schedDoc(2048);
-      DeserializationError schedError =
-        deserializeJson(schedDoc, scheduleJSONStr);
+      DeserializationError schedError = deserializeJson(schedDoc, scheduleJSONStr);
 
       if (!schedError) {
+        JsonObject root = schedDoc.as<JsonObject>();
         // Bugünün saatlerini kontrol et
-        JsonArray todayAlarms = schedDoc[currentDay];
+        JsonArray todayAlarms = root[currentDay.c_str()];
         bool shouldAlarm = false;
         
         Serial.println("[DEBUG] İncelenen Gün: " + currentDay + " | Mevcut Saat: " + currentTime);
         Serial.print("[DEBUG] Bu Gün İçin Ayarlı Saatler: ");
         
         if (todayAlarms.isNull() || todayAlarms.size() == 0) {
-           Serial.println("(Hiç alarm yok)");
+           Serial.println("(Hiç alarm yok - veya JSON'da gün key'i bulunamadı)");
         } else {
            for (JsonVariant value : todayAlarms) {
              String alarmTime = value.as<String>();
+             alarmTime.trim(); // Boşlukları temizle
              Serial.print(alarmTime + " ");
              if (alarmTime == currentTime) {
                shouldAlarm = true;

@@ -34,7 +34,7 @@ export default function ScheduleScreen() {
   const handleCellPress = (periodIdx, dayIdx) => {
     const cellData = scheduleGrid[periodIdx]?.[dayIdx];
     setSelectedCell({ period: periodIdx, day: dayIdx, data: cellData });
-    setMedName(cellData?.name || '');
+    setMedName(cellData?.medicationName || cellData?.name || '');
     setMedTime(cellData?.time || PERIOD_TIMES[periodIdx]);
     setSheetVisible(true);
   };
@@ -215,7 +215,7 @@ export default function ScheduleScreen() {
                         <Ionicons name="medical" size={10} color="#fff" />
                       </View>
                       <Text style={[styles.cellMedName, { color: pc.accent }]} numberOfLines={2}>
-                        {cellData.name}
+                        {cellData.medicationName || cellData.name}
                       </Text>
                       <Text style={[styles.cellCompartment, { color: pc.gradient }]}>
                         B{compartmentNumber(periodIdx, dayIdx)}
