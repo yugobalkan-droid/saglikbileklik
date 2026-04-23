@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius } from '../theme';
 
 export default function DeviceStatusBadge({ label, status, icon, batteryLevel }) {
-  const isOnline = status === 'online';
+  const isOnline = status === 'online' || status === 'taken';
   const isBattery = !!batteryLevel;
 
   return (
