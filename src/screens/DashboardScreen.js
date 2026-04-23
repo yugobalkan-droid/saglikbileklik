@@ -37,6 +37,7 @@ export default function DashboardScreen({ navigation }) {
     todayLogs,
     todayStats,
     nextMedication,
+    scheduleGrid,
     loading,
   } = usePatient();
 
