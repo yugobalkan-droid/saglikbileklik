@@ -39,3 +39,16 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Java crash logs
+hs_err_pid*.log
+replay_pid*.log
+
+# Vercel
+.vercel
+
+# Build artifacts
+dist/
+
+# Implementation plan
+implementation_plan.md

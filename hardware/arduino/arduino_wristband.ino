@@ -23,6 +23,11 @@
 #include <SPI.h>
 #include <RF24.h>
 
+// ESP32-S3 uyumluluğu: VSPI tanımlı değilse FSPI kullan
+#ifndef VSPI
+  #define VSPI FSPI
+#endif
+
 /* ─── Pin Tanımlamaları ──────────────────────────────────── */
 #define LED_PIN     4    // Uyarı LED'i
 #define BUZZER_PIN  46   // Buzzer
