@@ -303,6 +303,20 @@ export default function SettingsScreen() {
     { value: 60, label: '1 saat' },
   ];
 
+  // ESP32 Test Sinyali
+  const handleTestESP32 = async () => {
+    try {
+      const boxRef = doc(db, 'devices', 'esp32_medicine_box_01');
+      await updateDoc(boxRef, {
+        triggerAlert: true,
+        updatedAt: serverTimestamp()
+      });
+      Alert.alert('Test Gönderildi', 'ESP32 cihazına test sinyali gönderildi! Kutu üzerindeki LED yanmalı ve Buzzer sesli uyarı vermelidir.');
+    } catch (error) {
+      Alert.alert('Hata', 'Test sinyali gönderilemedi. Cihazın Firebase ile eşleştiğinden emin olun. Hata: ' + error.message);
+    }
+  };
+
   if (loggingOut) {
     return (
       <View style={styles.loadingContainer}>
@@ -397,6 +411,16 @@ export default function SettingsScreen() {
             subtitle="2.4GHz • Aktif"
             iconBg={colors.infoSurface}
             onPress={() => openDeviceDetail('rf')}
+          />
+          <View style={styles.divider} />
+          <SettingsItem
+            icon="beaker-outline"
+            title="ESP32 Test Modülü"
+            subtitle="LED ve Buzzer alarmını manuel test et"
+            iconBg={colors.warningSurface}
+            iconColor={colors.warning}
+            onPress={handleTestESP32}
+            hasChevron={false}
           />
         </View>
 

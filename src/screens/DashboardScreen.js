@@ -271,9 +271,9 @@ export default function DashboardScreen({ navigation }) {
         title="Yeni Hatırlatıcı"
       >
         <View style={styles.sheetContent}>
-          <Pressable style={styles.sheetOption} onPress={() => {
+          <TouchableOpacity style={styles.sheetOption} activeOpacity={0.7} onPress={() => {
             setShowAddSheet(false);
-            navigation.navigate('Schedule');
+            setTimeout(() => navigation.navigate('Schedule'), 300);
           }}>
             <View style={[styles.sheetOptionIcon, { backgroundColor: colors.primarySurface }]}>
               <Ionicons name="medical" size={22} color={colors.primary} />
@@ -283,11 +283,11 @@ export default function DashboardScreen({ navigation }) {
               <Text style={styles.sheetOptionDesc}>Yeni bir ilaç hatırlatıcısı oluştur</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-          </Pressable>
+          </TouchableOpacity>
 
-          <Pressable style={styles.sheetOption} onPress={() => {
+          <TouchableOpacity style={styles.sheetOption} activeOpacity={0.7} onPress={() => {
             setShowAddSheet(false);
-            navigation.navigate('Schedule');
+            setTimeout(() => navigation.navigate('Schedule'), 300);
           }}>
             <View style={[styles.sheetOptionIcon, { backgroundColor: colors.secondarySurface }]}>
               <Ionicons name="calendar" size={22} color={colors.secondary} />
@@ -297,13 +297,13 @@ export default function DashboardScreen({ navigation }) {
               <Text style={styles.sheetOptionDesc}>Haftalık ilaç programını düzenle</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-          </Pressable>
+          </TouchableOpacity>
 
           {!patient && (
             <>
-              <Pressable style={styles.sheetOption} onPress={() => {
+              <TouchableOpacity style={styles.sheetOption} activeOpacity={0.7} onPress={() => {
                 setShowAddSheet(false);
-                setShowPatientSheet(true);
+                setTimeout(() => setShowPatientSheet(true), 300);
               }}>
                 <View style={[styles.sheetOptionIcon, { backgroundColor: colors.successSurface }]}>
                   <Ionicons name="person-add" size={22} color={colors.success} />
@@ -313,11 +313,11 @@ export default function DashboardScreen({ navigation }) {
                   <Text style={styles.sheetOptionDesc}>Yeni hasta tanımlayın</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-              </Pressable>
+              </TouchableOpacity>
 
-              <Pressable style={styles.sheetOption} onPress={() => {
+              <TouchableOpacity style={styles.sheetOption} activeOpacity={0.7} onPress={() => {
                 setShowAddSheet(false);
-                handleSeedData();
+                setTimeout(() => handleSeedData(), 300);
               }}>
                 <View style={[styles.sheetOptionIcon, { backgroundColor: colors.accentSurface }]}>
                   <Ionicons name="cloud-download" size={22} color={colors.accent} />
