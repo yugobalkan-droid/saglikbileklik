@@ -64,20 +64,25 @@ export const syncDeviceSchedule = async (patientId) => {
 
     const scheduleJSON = JSON.stringify(scheduleData);
 
-    // 3. Hastanın kutu cihazını bul
+    // 3. Hastanın cihazlarını bul (Composite index hatasını önlemek için type filtrelemesini kodda yapıyoruz)
     const devicesRef = collection(db, 'devices');
-    const q = query(devicesRef, where('patientId', '==', patientId), where('type', '==', 'box'));
+    const q = query(devicesRef, where('patientId', '==', patientId));
     const deviceSnap = await getDocs(q);
 
-    if (!deviceSnap.empty) {
+    // Kutuyu bul
+    const boxDoc = deviceSnap.docs.find(doc => doc.data().type === 'box');
+
+    if (boxDoc) {
       // 4. Cihaz belgesini güncelle
-      const deviceId = deviceSnap.docs[0].id;
+      const deviceId = boxDoc.id;
       const deviceRef = doc(db, 'devices', deviceId);
       await setDoc(deviceRef, {
         scheduleJSON: scheduleJSON,
         updatedAt: serverTimestamp()
       }, { merge: true });
       console.log(`[Sync] Device ${deviceId} scheduleJSON updated.`);
+    } else {
+      console.log("[Sync] Hastaya ait 'box' cihazı bulunamadı.");
     }
   } catch (error) {
     console.error("Cihaz senkronizasyon hatası:", error);
