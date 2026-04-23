@@ -322,7 +322,7 @@ export default function SettingsScreen() {
     try {
       const boxRef = doc(db, 'devices', 'esp32_medicine_box_01');
       await updateDoc(boxRef, {
-        triggerAlert: false,
+        stopAlert: true,
         updatedAt: serverTimestamp()
       });
       Alert.alert('Test Durduruldu', 'ESP32 cihazına testi durdurma sinyali gönderildi! LED ve alarm kapanacaktır.');

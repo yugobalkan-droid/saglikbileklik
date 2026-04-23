@@ -260,11 +260,22 @@ void checkFirebaseAlarm() {
 
     // YÖNTEM B: 'triggerAlert' kontrolü (Mobil uygulama anlık tetikler)
     bool triggerAlert = doc["fields"]["triggerAlert"]["booleanValue"] | false;
+    
+    // UZAKTAN DURDURMA KONTROLÜ
+    bool stopAlert = doc["fields"]["stopAlert"]["booleanValue"] | false;
 
     // YÖNTEM A: 'scheduleJSON' kontrolü (Bağımsız Cihaz)
     String scheduleJSONStr = doc["fields"]["scheduleJSON"]["stringValue"] | "";
     String currentTime = getCurrentTimeStr();
     String currentDay = getCurrentDayStr();
+
+    if (stopAlert) {
+      Serial.println("[ALARM] Firebase'den 'stopAlert=true' (Durdur) komutu geldi!");
+      if (alarmActive) {
+        stopAlarm();
+      }
+      clearStopAlert(); // İşlem bittikten sonra Firebase'de false yap
+    }
 
     if (triggerAlert) {
       Serial.println("[ALARM] Firebase'den 'triggerAlert=true' komutu geldi!");
@@ -319,6 +330,21 @@ void clearTriggerAlert() {
                                          documentPath.c_str(), content.raw(),
                                          "triggerAlert")) {
       Serial.println("[Firebase] triggerAlert false yapıldı.");
+    }
+  }
+}
+
+// Alarm durdurulduktan sonra 'stopAlert' alanını temizle
+void clearStopAlert() {
+  if (Firebase.ready()) {
+    FirebaseJson content;
+    content.set("fields/stopAlert/booleanValue", false);
+
+    String documentPath = "devices/" + deviceId;
+    if (Firebase.Firestore.patchDocument(&fbdo, PROJECT_ID, "",
+                                         documentPath.c_str(), content.raw(),
+                                         "stopAlert")) {
+      Serial.println("[Firebase] stopAlert false yapıldı.");
     }
   }
 }
