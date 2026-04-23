@@ -39,6 +39,7 @@ export default function DashboardScreen({ navigation }) {
     nextMedication,
     scheduleGrid,
     loading,
+    alerts,
   } = usePatient();
 
   const [showAddSheet, setShowAddSheet] = useState(false);
