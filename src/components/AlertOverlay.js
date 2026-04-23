@@ -12,9 +12,14 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius, shadows } from '../theme';
 
+import { triggerDeviceAlarm } from '../services/deviceService';
+import { usePatient } from '../context/PatientContext';
+
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function AlertOverlay({ visible, onClose, patientName, medication, compartment, time, onResolve }) {
+  const { patientId } = usePatient();
+
   if (!visible) return null;
 
   const handleCall = () => {
@@ -22,8 +27,18 @@ export default function AlertOverlay({ visible, onClose, patientName, medication
     Linking.openURL('tel:').catch(() => {});
   };
 
-  const handleResend = () => {
-    // Hatırlatıcıyı tekrar gönder
+  const handleResend = async () => {
+    // Hatırlatıcıyı tekrar gönder (Cihazın alarmını tetikle)
+    if (patientId) {
+      try {
+        await triggerDeviceAlarm(patientId);
+        // İsteğe bağlı olarak kullanıcıya küçük bir toast veya bildirim gösterilebilir
+      } catch (error) {
+        console.error("Alarm tetiklenemedi:", error);
+      }
+    }
+    // Alarm tekrar tetiklendikten sonra overlay kapatılabilir veya kapatılmayabilir.
+    // Kullanıcıya seçeneği bırakmak için sadece kapatmayı kaldırabiliriz, ama şimdilik çözüldü işaretleyelim:
     if (onResolve) onResolve();
   };
 

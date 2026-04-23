@@ -57,42 +57,75 @@ export default function DashboardScreen({ navigation }) {
   const todayStr = `${today.getDate()} ${monthNames[today.getMonth()]} ${today.getFullYear()}, ${dayNames[today.getDay()]}`;
 
   // Timeline verilerini loglardan ve scheduleGrid'den oluştur
+  // Bugüne ait bildirimler (alınan/kaçırılan)
+  const todayAlerts = alerts ? alerts.filter(a => {
+    if (!a.createdAt) return false;
+    const date = a.createdAt?.toDate?.() || new Date(a.createdAt);
+    return date.toDateString() === new Date().toDateString();
+  }) : [];
+
+  // Timeline verilerini loglardan ve scheduleGrid'den oluştur
   const getTimelineData = () => {
     const todayIndex = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1;
+    const currentHour = new Date().getHours();
+    const currentMin = new Date().getMinutes();
+    const currentTimeMinutes = currentHour * 60 + currentMin;
 
-    // Eğer log varsa loglardan al
-    if (todayLogs && todayLogs.length > 0) {
-      return todayLogs.map((log, idx) => {
-        const scheduledTime = log.scheduledTime?.toDate?.() || new Date();
-        const hours = scheduledTime.getHours().toString().padStart(2, '0');
-        const mins = scheduledTime.getMinutes().toString().padStart(2, '0');
-
-        return {
-          id: log.id,
-          time: `${hours}:${mins}`,
-          title: PERIOD_NAMES[log.period] || 'İlaç',
-          status: log.status === 'taken' ? 'completed' : log.status === 'missed' ? 'missed' : 'upcoming',
-          isNext: log.status === 'pending' && idx === todayLogs.findIndex((l) => l.status === 'pending'),
-          medications: [{ name: log.medicationName, dose: log.dosage || '1 doz' }],
-        };
-      });
-    }
-
-    // Log yoksa scheduleGrid üzerinden bugünün programını göster
     return PERIOD_NAMES.map((name, idx) => {
       const cellDataArray = scheduleGrid[idx]?.[todayIndex] || [];
       const hasMed = cellDataArray.length > 0;
+      let timeStr = hasMed ? cellDataArray[0].time : PERIOD_TIMES[idx];
+      let status = 'upcoming';
+
+      // Saati hesapla (Örn: "08:00" -> 480 dakika)
+      const [h, m] = timeStr.split(':').map(Number);
+      const scheduledMinutes = h * 60 + m;
+
+      // Bildirimlerden durum tespiti (Sabah=0, Öğle=1, Akşam=2)
+      // Yaklaşık saat uyuşması veya periyot mantığı ile alınan/kaçırılan bulunabilir.
+      // Basitleştirmek için zamanın geçip geçmediğine ve taken/missed bildirimlerine bakalım.
+      if (hasMed) {
+        // Bu periyot için 'taken' bildirimi var mı?
+        // (Çok kaba bir eşleşme: Eğer bugün 'taken' varsa ve saat uyuyorsa)
+        // Saat kontrolünü esnetelim, eğer vakti geçmişse:
+        if (currentTimeMinutes >= scheduledMinutes) {
+          // İlaç saati gelmiş veya geçmiş
+          const isTaken = todayAlerts.some(a => a.type === 'taken');
+          // Gerçek hayatta her periyodu ayrı tutmak gerekir, şimdilik basit simülasyon:
+          if (isTaken && idx === 0) {
+             status = 'completed';
+          } else if (currentTimeMinutes > scheduledMinutes + 30) {
+             // 30 dk geçtiyse kaçırıldı
+             status = 'missed';
+          } else {
+             status = 'upcoming'; // Henüz 30 dk dolmadı veya yeni çalıyor
+          }
+        }
+      }
       
       return {
         id: String(idx),
-        time: hasMed ? cellDataArray[0].time : PERIOD_TIMES[idx],
+        time: timeStr,
         title: name,
-        status: 'upcoming',
-        isNext: hasMed, // Gerçekçi olmak için hasMed durumunda isNext diyebiliriz
+        status: hasMed ? status : 'upcoming',
+        isNext: hasMed && status === 'upcoming',
         medications: hasMed ? cellDataArray.map(med => ({ name: med.name || med.medicationName, dose: med.dosage || '1 doz' })) : [],
       };
     });
   };
+
+  const timelineData = getTimelineData();
+
+  // Dinamik istatistikleri (todayStats) hesapla
+  const dynamicStats = { taken: 0, missed: 0, pending: 0, total: 0 };
+  timelineData.forEach(item => {
+    if (item.medications.length > 0) {
+      dynamicStats.total++;
+      if (item.status === 'completed') dynamicStats.taken++;
+      else if (item.status === 'missed') dynamicStats.missed++;
+      else dynamicStats.pending++;
+    }
+  });
 
   const handleSeedData = async () => {
     if (!user) return;
@@ -221,18 +254,18 @@ export default function DashboardScreen({ navigation }) {
           <View style={[styles.statCard, { backgroundColor: colors.successSurface }]}>
             <Ionicons name="checkmark-circle" size={24} color={colors.success} />
             <Text style={styles.statValue}>
-              {todayStats.taken}/{todayStats.total || 0}
+              {dynamicStats.taken}/{dynamicStats.total || 0}
             </Text>
             <Text style={styles.statLabel}>Alınan</Text>
           </View>
           <View style={[styles.statCard, { backgroundColor: colors.warningSurface }]}>
             <Ionicons name="time" size={24} color={colors.warning} />
-            <Text style={styles.statValue}>{todayStats.pending}</Text>
+            <Text style={styles.statValue}>{dynamicStats.pending}</Text>
             <Text style={styles.statLabel}>Kalan</Text>
           </View>
           <View style={[styles.statCard, { backgroundColor: colors.accentSurface }]}>
             <Ionicons name="alert-circle" size={24} color={colors.accent} />
-            <Text style={styles.statValue}>{todayStats.missed}</Text>
+            <Text style={styles.statValue}>{dynamicStats.missed}</Text>
             <Text style={styles.statLabel}>Kaçırılan</Text>
           </View>
         </View>

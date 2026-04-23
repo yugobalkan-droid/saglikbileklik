@@ -66,6 +66,27 @@ export const updateDeviceStatus = async (deviceId, data) => {
   }, { merge: true });
 };
 
+// Cihazın alarmını manuel olarak tekrar çaldırmak için triggerAlert bayrağını true yap
+export const triggerDeviceAlarm = async (patientId) => {
+  // Önce hastanın box cihazını bulalım (şu an demo sistemde tek bir box ID'miz var: esp32_medicine_box_01)
+  // Gerçek sistemde patientId'ye göre query atılır.
+  const q = query(
+    collection(db, COLLECTION),
+    where('patientId', '==', patientId),
+    where('type', '==', 'box')
+  );
+  const snapshot = await getDocs(q);
+  
+  if (!snapshot.empty) {
+    const boxDoc = snapshot.docs[0];
+    const docRef = doc(db, COLLECTION, boxDoc.id);
+    await updateDoc(docRef, {
+      triggerAlert: true,
+      lastResend: serverTimestamp(),
+    });
+  }
+};
+
 // Cihaz oluştur veya güncelle
 export const registerDevice = async (deviceId, data) => {
   const docRef = doc(db, COLLECTION, deviceId);
