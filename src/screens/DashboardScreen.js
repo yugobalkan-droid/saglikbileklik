@@ -80,16 +80,16 @@ export default function DashboardScreen({ navigation }) {
 
     // Log yoksa scheduleGrid üzerinden bugünün programını göster
     return PERIOD_NAMES.map((name, idx) => {
-      const cellData = scheduleGrid[idx]?.[todayIndex];
-      const hasMed = !!cellData;
+      const cellDataArray = scheduleGrid[idx]?.[todayIndex] || [];
+      const hasMed = cellDataArray.length > 0;
       
       return {
         id: String(idx),
-        time: cellData?.time || PERIOD_TIMES[idx],
+        time: hasMed ? cellDataArray[0].time : PERIOD_TIMES[idx],
         title: name,
         status: 'upcoming',
         isNext: hasMed, // Gerçekçi olmak için hasMed durumunda isNext diyebiliriz
-        medications: hasMed ? [{ name: cellData.medicationName || cellData.name, dose: cellData.dosage || '1 doz' }] : [],
+        medications: hasMed ? cellDataArray.map(med => ({ name: med.name || med.medicationName, dose: med.dosage || '1 doz' })) : [],
       };
     });
   };

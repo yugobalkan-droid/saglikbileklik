@@ -93,8 +93,8 @@ export function PatientProvider({ children }) {
         }
 
         // İlaç Alındı (Buton) kontrolü
-        if (box && box.medicineTakenTime) {
-          if (lastTakenRef.current !== box.medicineTakenTime) {
+        if (box && box.lastTaken) {
+          if (lastTakenRef.current !== box.lastTaken) {
             if (lastTakenRef.current !== null) {
                try {
                  const { createAlert } = require('../services/alertService');
@@ -102,14 +102,14 @@ export function PatientProvider({ children }) {
                    patientId: patientId,
                    type: 'taken', // Alındı bildirimi
                    title: 'İlaç Alındı',
-                   message: `Kutudaki fiziksel butona basıldı! Saat: ${box.medicineTakenTime}`,
-                   time: box.medicineTakenTime,
+                   message: `Kutudaki fiziksel butona basıldı! Saat: ${box.lastTaken}`,
+                   time: box.lastTaken,
                  });
                } catch(e) {
                  console.log("Alındı bildirimi oluşturulamadı", e);
                }
             }
-            lastTakenRef.current = box.medicineTakenTime;
+            lastTakenRef.current = box.lastTaken;
           }
         }
       })

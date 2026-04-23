@@ -12,7 +12,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
-// Haftalık programı getir (21 bölme)
+// Haftalık programı getir (21 bölme - çoklu ilaç)
 export const getWeeklySchedule = async (patientId) => {
   const slotsRef = collection(db, 'schedules', patientId, 'slots');
   const snapshot = await getDocs(slotsRef);
@@ -20,8 +20,8 @@ export const getWeeklySchedule = async (patientId) => {
 
   snapshot.docs.forEach((doc) => {
     const data = doc.data();
-    const key = `${data.period}-${data.day}`;
-    slots[key] = { id: doc.id, ...data };
+    // Benzersiz doc.id kullanarak hiçbir ilacın üzerine yazılmasını (ezilmesini) engelliyoruz
+    slots[doc.id] = { id: doc.id, ...data };
   });
 
   return slots;
@@ -34,8 +34,8 @@ export const onScheduleChanged = (patientId, callback) => {
     const slots = {};
     snapshot.docs.forEach((doc) => {
       const data = doc.data();
-      const key = `${data.period}-${data.day}`;
-      slots[key] = { id: doc.id, ...data };
+      // Aynı periyot ve güne sahip olsalar bile ayrı ayrı kaydedilsinler
+      slots[doc.id] = { id: doc.id, ...data };
     });
     callback(slots);
   });
