@@ -21,6 +21,7 @@ import FAB from '../components/FAB';
 import BottomSheet from '../components/BottomSheet';
 import { usePatient } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
+import { useBLE } from '../context/BLEContext';
 import { seedDemoData } from '../utils/seedData';
 import { createPatient } from '../services/patientService';
 
@@ -41,6 +42,21 @@ export default function DashboardScreen({ navigation }) {
     loading,
     alerts,
   } = usePatient();
+  const {
+    bleConnected,
+    bleScanning,
+    bleStatus,
+    batteryLevel,
+    chargeState,
+    chargeStateText,
+    alarmActive,
+    batteryIcon,
+    batteryColor,
+    connectWristband,
+    disconnectWristband,
+    triggerAlarm,
+    stopAlarm,
+  } = useBLE();
 
   const [showAddSheet, setShowAddSheet] = useState(false);
   const [seeding, setSeeding] = useState(false);
@@ -211,9 +227,9 @@ export default function DashboardScreen({ navigation }) {
                 />
                 <DeviceStatusBadge
                   label="Bileklik"
-                  status={deviceStatus.bracelet?.status || 'offline'}
+                  status={bleConnected ? 'online' : 'offline'}
                   icon="watch-outline"
-                  batteryLevel={deviceStatus.bracelet?.batteryLevel}
+                  batteryLevel={bleConnected ? batteryLevel : null}
                 />
               </View>
             </View>
@@ -267,6 +283,98 @@ export default function DashboardScreen({ navigation }) {
             <Text style={styles.statValue}>{dynamicStats.missed}</Text>
             <Text style={styles.statLabel}>Kaçırılan</Text>
           </View>
+        </View>
+
+        {/* ── Bileklik BLE Widget ── */}
+        <View style={styles.wristbandCard}>
+          <View style={styles.wristbandHeader}>
+            <View style={styles.wristbandTitleRow}>
+              <Ionicons name="watch-outline" size={20} color={colors.primary} />
+              <Text style={styles.wristbandTitle}>Bileklik</Text>
+            </View>
+            <View style={[styles.wristbandStatusDot, 
+              { backgroundColor: bleConnected ? colors.online : colors.offline }]} />
+          </View>
+
+          {bleConnected ? (
+            <View>
+              {/* Pil & Şarj Bilgisi */}
+              <View style={styles.wristbandInfoRow}>
+                <View style={styles.wristbandInfoItem}>
+                  <Ionicons name={batteryIcon} size={22} color={batteryColor} />
+                  <Text style={[styles.wristbandInfoValue, { color: batteryColor }]}>
+                    {batteryLevel !== null ? `${batteryLevel}%` : '--'}
+                  </Text>
+                  <Text style={styles.wristbandInfoLabel}>Pil</Text>
+                </View>
+                <View style={styles.wristbandInfoDivider} />
+                <View style={styles.wristbandInfoItem}>
+                  <Ionicons 
+                    name={chargeState === 1 ? 'flash' : chargeState === 2 ? 'checkmark-circle' : 'flash-off-outline'} 
+                    size={22} 
+                    color={chargeState === 1 ? '#FBBC04' : chargeState === 2 ? colors.success : colors.textTertiary} 
+                  />
+                  <Text style={styles.wristbandInfoValue}>{chargeStateText}</Text>
+                  <Text style={styles.wristbandInfoLabel}>Şarj</Text>
+                </View>
+                <View style={styles.wristbandInfoDivider} />
+                <View style={styles.wristbandInfoItem}>
+                  <Ionicons 
+                    name={alarmActive ? 'notifications' : 'notifications-off-outline'} 
+                    size={22} 
+                    color={alarmActive ? colors.accent : colors.textTertiary} 
+                  />
+                  <Text style={styles.wristbandInfoValue}>
+                    {alarmActive ? 'Aktif' : 'Kapalı'}
+                  </Text>
+                  <Text style={styles.wristbandInfoLabel}>Alarm</Text>
+                </View>
+              </View>
+
+              {/* Alarm Kontrol Butonları */}
+              <View style={styles.wristbandActions}>
+                {alarmActive ? (
+                  <TouchableOpacity style={styles.wristbandStopBtn} onPress={stopAlarm}>
+                    <Ionicons name="stop-circle-outline" size={18} color="#FFF" />
+                    <Text style={styles.wristbandBtnText}>Alarmı Durdur</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity style={styles.wristbandAlarmBtn} onPress={triggerAlarm}>
+                    <Ionicons name="notifications-outline" size={18} color="#FFF" />
+                    <Text style={styles.wristbandBtnText}>Alarm Gönder</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity style={styles.wristbandDisconnectBtn} onPress={disconnectWristband}>
+                  <Ionicons name="bluetooth-outline" size={18} color={colors.accent} />
+                  <Text style={[styles.wristbandBtnText, { color: colors.accent }]}>Bağlantıyı Kes</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <View style={styles.wristbandDisconnected}>
+              <Text style={styles.wristbandDisconnectedText}>
+                {bleStatus === 'scanning' ? 'Bileklik aranıyor...' :
+                 bleStatus === 'connecting' ? 'Bağlanıyor...' :
+                 bleStatus === 'not_found' ? 'Bileklik bulunamadı' :
+                 bleStatus === 'failed' ? 'Bağlantı başarısız' :
+                 'Bileklik bağlı değil'}
+              </Text>
+              <TouchableOpacity 
+                style={styles.wristbandConnectBtn} 
+                onPress={connectWristband}
+                disabled={bleScanning}
+              >
+                {bleScanning ? (
+                  <ActivityIndicator size="small" color="#FFF" />
+                ) : (
+                  <>
+                    <Ionicons name="bluetooth-outline" size={18} color="#FFF" />
+                    <Text style={styles.wristbandBtnText}>Bilekliği Bağla</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
         {/* Next Medication Highlight */}
@@ -694,5 +802,121 @@ const styles = StyleSheet.create({
   savePatientBtnText: {
     ...typography.titleMedium,
     color: colors.textOnPrimary,
+  },
+  // ── Bileklik BLE Widget ──
+  wristbandCard: {
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    padding: spacing.xl,
+    marginBottom: spacing.xl,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.primary,
+    ...shadows.md,
+  },
+  wristbandHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  wristbandTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  wristbandTitle: {
+    ...typography.headlineSmall,
+    color: colors.textPrimary,
+  },
+  wristbandStatusDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  wristbandInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceVariant,
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.lg,
+    marginBottom: spacing.lg,
+  },
+  wristbandInfoItem: {
+    alignItems: 'center',
+    gap: spacing.xs,
+    flex: 1,
+  },
+  wristbandInfoValue: {
+    ...typography.titleMedium,
+    color: colors.textPrimary,
+  },
+  wristbandInfoLabel: {
+    ...typography.labelSmall,
+    color: colors.textTertiary,
+  },
+  wristbandInfoDivider: {
+    width: 1,
+    height: 36,
+    backgroundColor: colors.border,
+  },
+  wristbandActions: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  wristbandAlarmBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
+    gap: spacing.xs,
+  },
+  wristbandStopBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.accent,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
+    gap: spacing.xs,
+  },
+  wristbandDisconnectBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceVariant,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
+    gap: spacing.xs,
+    borderWidth: 1,
+    borderColor: colors.accent,
+  },
+  wristbandBtnText: {
+    ...typography.labelLarge,
+    color: '#FFF',
+  },
+  wristbandDisconnected: {
+    alignItems: 'center',
+    gap: spacing.lg,
+  },
+  wristbandDisconnectedText: {
+    ...typography.bodyMedium,
+    color: colors.textSecondary,
+  },
+  wristbandConnectBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xxl,
+    borderRadius: borderRadius.md,
+    gap: spacing.sm,
+    ...shadows.sm,
   },
 });
