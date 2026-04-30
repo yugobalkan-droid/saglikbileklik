@@ -34,32 +34,35 @@
 #include "power_manager.h"
 #include "nrf_comm.h"
 #include "ble_service.h"
+#include "firebase_sync.h"
 
 /* ─── Modül Örnekleri ────────────────────────────────────── */
 PowerManager power;
-NRFComm      nrf;
-CareSyncBLE  ble;
+NRFComm nrf;
+CareSyncBLE ble;
+FirebaseSync fbSync;
 
 /* ─── Durum Değişkenleri ─────────────────────────────────── */
-bool     alarmActive       = false;
-uint8_t  alarmType         = 0;
-bool     buttonPressed     = false;
-bool     vibrateState      = false;
+bool alarmActive = false;
+uint8_t alarmType = 0;
+bool buttonPressed = false;
+bool vibrateState = false;
 
 /* ─── Zamanlama ──────────────────────────────────────────── */
-unsigned long lastBatteryCheck   = 0;
-unsigned long lastBLENotify      = 0;
-unsigned long lastNRFCheck       = 0;
-unsigned long lastVibrateToggle  = 0;
-unsigned long lastActivityTime   = 0;   // Son aktivite zamanı (deep sleep için)
-unsigned long alarmStartTime     = 0;   // Alarm başlangıç zamanı
+unsigned long lastBatteryCheck = 0;
+unsigned long lastBLENotify = 0;
+unsigned long lastNRFCheck = 0;
+unsigned long lastVibrateToggle = 0;
+unsigned long lastActivityTime = 0;  // Son aktivite zamanı (deep sleep için)
+unsigned long alarmStartTime = 0;    // Alarm başlangıç zamanı
+unsigned long lastFirebaseSync = 0;  // Son Firebase senkronizasyonu
 
 /* ─── Alarm Deseni ───────────────────────────────────────── */
 // Titreşim deseni: [on_ms, off_ms, on_ms, off_ms, ...]
 // İlaç alarmı: Güçlü, ritmik titreşim
-uint8_t  alarmPatternIndex = 0;
-uint8_t  alarmRepeatCount  = 0;
-bool     inAlarmPause      = false;
+uint8_t alarmPatternIndex = 0;
+uint8_t alarmRepeatCount = 0;
+bool inAlarmPause = false;
 
 /* ─────────────────────────────────────────────────────────
    SETUP
@@ -74,9 +77,9 @@ void setup() {
 
   // ── Pin Kurulumu ──
   pinMode(VIBRO_MOTOR_PIN, OUTPUT);
-  pinMode(STATUS_LED_PIN,    OUTPUT);
-  pinMode(BUTTON_PIN,        INPUT_PULLUP);
-  pinMode(BOOT_BUTTON_PIN,   INPUT_PULLUP);
+  pinMode(STATUS_LED_PIN, OUTPUT);
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+  pinMode(BOOT_BUTTON_PIN, INPUT_PULLUP);
 
   // Tüm çıkışları kapat
   stopAllOutputs();
@@ -92,7 +95,7 @@ void setup() {
     DEBUG_PRINTLN("[!] Pil kritik düzeyde! Deep Sleep'e geçiliyor...");
     criticalBatteryWarning();
     power.enterDeepSleep();
-    return; // Asla buraya gelmez
+    return;  // Asla buraya gelmez
   }
 
   // 3. NRF24L01
@@ -109,6 +112,17 @@ void setup() {
   ble.updateBatteryLevel(power.batteryPercent);
   ble.updateChargeState(power.chargeState);
 
+  // 5. Firebase (WiFi'yi setup'ta AÇMA – güç yetersizliğine karşı)
+  // İlk sync loop'ta 60 sn sonra yapılacak
+  fbSync.begin();
+  fbSync.onAlarmTrigger([]() {
+    if (!alarmActive) triggerAlarm(ALARM_TYPE_APP_TRIGGER);
+  });
+  fbSync.onAlarmStop([]() {
+    if (alarmActive) stopAlarm();
+  });
+  DEBUG_PRINTLN("[FIREBASE] Yapılandırıldı. İlk sync 60 sn sonra.");
+
   // ── Başlangıç Testi ──
   startupFeedback();
 
@@ -116,12 +130,12 @@ void setup() {
 
   DEBUG_PRINTLN("\n══ Sistem Hazır ══");
   DEBUG_PRINTF("Pil: %d%% (%.2fV) | Şarj: %s\n",
-    power.batteryPercent, power.batteryVoltage,
-    power.chargeState == 1 ? "Oluyor" :
-    power.chargeState == 2 ? "Tam" : "Hayır");
+               power.batteryPercent, power.batteryVoltage,
+               power.chargeState == 1 ? "Oluyor" : power.chargeState == 2 ? "Tam"
+                                                                          : "Hayır");
   DEBUG_PRINTF("NRF24: %s | BLE: %s\n",
-    nrf.isReady ? "✅" : "❌",
-    "✅ Yayında");
+               nrf.isReady ? "✅" : "❌",
+               "✅ Yayında");
 }
 
 /* ─────────────────────────────────────────────────────────
@@ -176,9 +190,9 @@ void loop() {
     }
 
     DEBUG_PRINTF("[DURUM] Pil: %d%% (%.2fV) | Şarj: %d | BLE: %s\n",
-      power.batteryPercent, power.batteryVoltage,
-      power.chargeState,
-      ble.isConnected ? "Bağlı" : "Yayında");
+                 power.batteryPercent, power.batteryVoltage,
+                 power.chargeState,
+                 ble.isConnected ? "Bağlı" : "Yayında");
   }
 
   // ══════════════════════════════════════════════════════
@@ -190,13 +204,38 @@ void loop() {
     ble.updateChargeState(power.chargeState);
   }
 
+  // ══════════════════════════════════════════════════
+  // 6. FIREBASE SENK (periyodik – her 60 sn)
+  //    BLE durdur → WiFi aç → sync → WiFi kapat → BLE aç
+  // ══════════════════════════════════════════════════
+  if (now - lastFirebaseSync >= FIREBASE_SYNC_INTERVAL) {
+    lastFirebaseSync = now;
+    DEBUG_PRINTLN("[SYNC] Firebase senkronizasyonu başlıyor...");
+    
+    // BLE'yi durdur (WiFi ile radyo çakışmasını önle)
+    bool wasBleConnected = ble.isConnected;
+    ble.stop();
+    delay(200);
+    
+    // Firebase sync
+    fbSync.syncAndDisconnect(
+      power.batteryPercent, power.batteryVoltage,
+      power.chargeState, alarmActive, wasBleConnected);
+    
+    // BLE'yi tekrar başlat
+    delay(200);
+    ble.begin();
+    ble.onAlarmCommand(onBLEAlarmCommand);
+    ble.updateBatteryLevel(power.batteryPercent);
+    ble.updateChargeState(power.chargeState);
+    DEBUG_PRINTLN("[SYNC] ✅ Sync tamamlandı, BLE tekrar aktif.");
+  }
+
   // ══════════════════════════════════════════════════════
   // 6. GÜÇ TASARRUFU
   // ══════════════════════════════════════════════════════
   // Şarj oluyorsa veya alarm aktifse → uyuma
-  if (!alarmActive &&
-      power.chargeState != CHARGE_STATE_CHARGING &&
-      (now - lastActivityTime >= DEEP_SLEEP_IDLE_TIMEOUT)) {
+  if (!alarmActive && power.chargeState != CHARGE_STATE_CHARGING && (now - lastActivityTime >= DEEP_SLEEP_IDLE_TIMEOUT)) {
     DEBUG_PRINTLN("[GÜÇ] Uzun süre işlem yok, deep sleep'e geçiliyor...");
     ble.stop();
     nrf.powerDown();
@@ -230,13 +269,13 @@ void onBLEAlarmCommand(bool activate) {
 
 // Alarmı başlat
 void triggerAlarm(uint8_t type) {
-  alarmActive       = true;
-  alarmType         = type;
+  alarmActive = true;
+  alarmType = type;
   alarmPatternIndex = 0;
-  alarmRepeatCount  = 0;
-  inAlarmPause      = false;
-  vibrateState      = true;
-  alarmStartTime    = millis();
+  alarmRepeatCount = 0;
+  inAlarmPause = false;
+  vibrateState = true;
+  alarmStartTime = millis();
   lastVibrateToggle = millis();
 
   // Motorları aç
@@ -254,7 +293,7 @@ void triggerAlarm(uint8_t type) {
 // Alarmı durdur
 void stopAlarm() {
   alarmActive = false;
-  alarmType   = 0;
+  alarmType = 0;
 
   // Motorları kapat
   setVibration(false);
@@ -273,9 +312,9 @@ void handleAlarmVibration(unsigned long now) {
   if (inAlarmPause) {
     // Döngüler arası bekleme
     if (now - lastVibrateToggle >= ALARM_REPEAT_DELAY_MS) {
-      inAlarmPause      = false;
+      inAlarmPause = false;
       alarmPatternIndex = 0;
-      vibrateState      = true;
+      vibrateState = true;
       lastVibrateToggle = now;
       setVibration(true);
     }
@@ -297,7 +336,7 @@ void handleAlarmVibration(unsigned long now) {
       if (alarmPatternIndex >= ALARM_PATTERN_COUNT) {
         // Bir döngü tamamlandı → bekleme süresine geç
         alarmRepeatCount++;
-        inAlarmPause      = true;
+        inAlarmPause = true;
         lastVibrateToggle = now;
         DEBUG_PRINTF("[ALARM] Döngü #%d tamamlandı.\n", alarmRepeatCount);
       } else {
@@ -320,17 +359,15 @@ void setVibration(bool on) {
 
 void handleButton(unsigned long now) {
   // Harici buton veya BOOT butonu
-  bool isPressed = (digitalRead(BUTTON_PIN) == LOW) ||
-                   (digitalRead(BOOT_BUTTON_PIN) == LOW);
+  bool isPressed = (digitalRead(BUTTON_PIN) == LOW) || (digitalRead(BOOT_BUTTON_PIN) == LOW);
 
   if (isPressed) {
     delay(DEBOUNCE_MS);
     // Tekrar kontrol (debounce)
-    isPressed = (digitalRead(BUTTON_PIN) == LOW) ||
-                (digitalRead(BOOT_BUTTON_PIN) == LOW);
+    isPressed = (digitalRead(BUTTON_PIN) == LOW) || (digitalRead(BOOT_BUTTON_PIN) == LOW);
 
     if (isPressed && !buttonPressed) {
-      buttonPressed    = true;
+      buttonPressed = true;
       lastActivityTime = now;
 
       DEBUG_PRINTLN("[BUTON] 👆 Basıldı!");
@@ -348,7 +385,10 @@ void handleButton(unsigned long now) {
         // 3. BLE üzerinden app'e bildir
         ble.notifyMedicineTaken();
 
-        // 4. Onay titreşimi (2 kısa bip)
+        // 4. Firebase'e ilaç alındı kaydı gönder
+        fbSync.confirmMedicineTaken();
+
+        // 5. Onay titreşimi (2 kısa bip)
         confirmFeedback();
 
       } else {
@@ -365,14 +405,12 @@ void handleButton(unsigned long now) {
    GERİ BİLDİRİM FONKSİYONLARI
    ───────────────────────────────────────────────────────── */
 
-// Başlangıç testi: 2 kısa titreşim
+// Başlangıç testi: sadece LED (titreşim yalnızca ilaç alarmında!)
 void startupFeedback() {
   DEBUG_PRINTLN("[TEST] Donanım testi...");
   for (int i = 0; i < 2; i++) {
-    setVibration(true);
     digitalWrite(STATUS_LED_PIN, HIGH);
     delay(120);
-    setVibration(false);
     digitalWrite(STATUS_LED_PIN, LOW);
     delay(120);
   }
@@ -389,11 +427,11 @@ void confirmFeedback() {
   }
 }
 
-// Düşük pil uyarısı: 1 uzun titreşim
+// Düşük pil uyarısı: sadece LED (titreşim yok)
 void lowBatteryBuzz() {
-  setVibration(true);
+  digitalWrite(STATUS_LED_PIN, HIGH);
   delay(100);
-  setVibration(false);
+  digitalWrite(STATUS_LED_PIN, LOW);
 }
 
 // Kritik pil uyarısı: 3 hızlı titreşim + LED
@@ -418,5 +456,5 @@ void statusBlink() {
 // Tüm çıkışları kapat
 void stopAllOutputs() {
   digitalWrite(VIBRO_MOTOR_PIN, LOW);
-  digitalWrite(STATUS_LED_PIN,  LOW);
+  digitalWrite(STATUS_LED_PIN, LOW);
 }

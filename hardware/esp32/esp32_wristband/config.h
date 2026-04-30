@@ -18,8 +18,18 @@
 
 /* ─── Cihaz Bilgileri ────────────────────────────────────── */
 #define DEVICE_NAME           "CareSync-Band"
-#define FIRMWARE_VERSION      "2.0.0"
+#define FIRMWARE_VERSION      "2.1.0"
 #define DEVICE_ID             "esp32_wristband_01"
+
+/* ─── WiFi Ayarları ───────────────────────────────────── */
+#define WIFI_SSID             "Harun59"
+#define WIFI_PASSWORD         "Harun5959"
+
+/* ─── Firebase Ayarları ────────────────────────────────── */
+#define FIREBASE_API_KEY      "AIzaSyDHII3X9MFkX5_HF6W5NtyosNyHFef9uDs"
+#define FIREBASE_PROJECT_ID   "saglikbileklik-356ed"
+#define FIREBASE_USER_EMAIL   "test@test.com"
+#define FIREBASE_USER_PASSWORD "test123"
 
 /* ─── Titreşim Motoru ────────────────────────────────────── */
 // 1 adet düğme titreşim motoru (2N2222A transistör üzerinden)
@@ -90,6 +100,7 @@
 #define ALARM_PATTERN_COUNT       5       // Bir alarm döngüsündeki titreşim sayısı
 #define ALARM_REPEAT_DELAY_MS     2000    // Alarm döngüleri arası bekleme (ms)
 #define DEBOUNCE_MS               50      // Buton debounce süresi
+#define FIREBASE_SYNC_INTERVAL    60000   // 60 saniyede bir Firebase senkronizasyonu
 
 /* ─── Deep Sleep Ayarları ────────────────────────────────── */
 // 85mAh ile tasarruf kritik!

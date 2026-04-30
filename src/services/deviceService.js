@@ -52,6 +52,21 @@ export const onDevicesChanged = (patientId, callback) => {
         console.log("Cihaz bağlanırken hata:", error);
       }
     }
+
+    // Eğer hastaya ait bileklik bulunamadıysa, ESP32 bilekliğin varsayılan ID'sini bu hastaya bağla
+    if (!devices.find(d => d.type === 'bracelet')) {
+      try {
+        const defaultBraceletRef = doc(db, COLLECTION, 'esp32_wristband_01');
+        await setDoc(defaultBraceletRef, {
+          patientId: patientId,
+          type: 'bracelet',
+          createdAt: serverTimestamp()
+        }, { merge: true });
+        console.log("esp32_wristband_01 bileklik cihazına patientId eklendi.");
+      } catch (error) {
+        console.log("Bileklik bağlanırken hata:", error);
+      }
+    }
     
     callback(devices);
   });

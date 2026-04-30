@@ -29,6 +29,8 @@ export function PatientProvider({ children }) {
   
   const lastAlarmRef = React.useRef(null);
   const lastTakenRef = React.useRef(null);
+  const lastBraceletTakenRef = React.useRef(null);
+  const lastBraceletLowBatRef = React.useRef(false);
 
   // İlk yükleme: bakıcının hastasını bul
   useEffect(() => {
@@ -69,30 +71,31 @@ export function PatientProvider({ children }) {
       onDevicesChanged(patientId, async (devices) => {
         setDeviceStatus(formatDeviceStatus(devices));
 
-        // Otonom alarm kontrolü
+        // ── İLAÇ KUTUSU BİLDİRİMLERİ ──
         const box = devices.find(d => d.type === 'box');
+        
+        // Kutu: Otonom alarm (ilaç saati geldi, alınmadı)
         if (box && box.lastAutonomousAlarm) {
           if (lastAlarmRef.current !== box.lastAutonomousAlarm) {
-            // İlk yükleme değilse ve alarm zamanı değiştiyse uygulamada bildirim oluştur
             if (lastAlarmRef.current !== null) {
                try {
                  const { createAlert } = require('../services/alertService');
                  await createAlert({
                    patientId: patientId,
-                   type: 'missed', // Ekranda AlertOverlay çıkması için 'missed' tipinde
-                   title: 'ESP32 Alarmı!',
-                   message: `İlaç kutusunda ${box.lastAutonomousAlarm} alarmı tetiklendi.`,
+                   type: 'missed',
+                   title: '⚠️ İlaç Alınmadı!',
+                   message: `İlaç saati geldi ancak ilaç henüz alınmadı. Saat: ${box.lastAutonomousAlarm}`,
                    time: box.lastAutonomousAlarm,
                  });
                } catch(e) {
-                 console.log("Otonom bildirim oluşturulamadı", e);
+                 console.log("Alarm bildirimi oluşturulamadı", e);
                }
             }
             lastAlarmRef.current = box.lastAutonomousAlarm;
           }
         }
 
-        // İlaç Alındı (Buton) kontrolü
+        // Kutu: İlaç alındı (buton basıldı)
         if (box && box.lastTaken) {
           if (lastTakenRef.current !== box.lastTaken) {
             if (lastTakenRef.current !== null) {
@@ -100,9 +103,9 @@ export function PatientProvider({ children }) {
                  const { createAlert } = require('../services/alertService');
                  await createAlert({
                    patientId: patientId,
-                   type: 'taken', // Alındı bildirimi
-                   title: 'İlaç Alındı',
-                   message: `Kutudaki fiziksel butona basıldı! Saat: ${box.lastTaken}`,
+                   type: 'taken',
+                   title: '✅ İlaç Alındı',
+                   message: `Hasta ilacını kutudan aldı. Saat: ${box.lastTaken}`,
                    time: box.lastTaken,
                  });
                } catch(e) {
@@ -110,6 +113,51 @@ export function PatientProvider({ children }) {
                }
             }
             lastTakenRef.current = box.lastTaken;
+          }
+        }
+
+        // ── BİLEKLİK BİLDİRİMLERİ ──
+        const bracelet = devices.find(d => d.type === 'bracelet');
+        
+        // Bileklik: İlaç onayı (bileklik butonuna basıldı)
+        if (bracelet && bracelet.lastTaken) {
+          if (lastBraceletTakenRef.current !== bracelet.lastTaken) {
+            if (lastBraceletTakenRef.current !== null) {
+              try {
+                const { createAlert } = require('../services/alertService');
+                await createAlert({
+                  patientId: patientId,
+                  type: 'taken',
+                  title: '✅ İlaç Onaylandı (Bileklik)',
+                  message: `Hasta bileklikteki butona basarak ilacı aldığını onayladı.`,
+                  time: bracelet.medicineTakenAt || bracelet.lastTaken,
+                });
+              } catch(e) {
+                console.log("Bileklik onay bildirimi oluşturulamadı", e);
+              }
+            }
+            lastBraceletTakenRef.current = bracelet.lastTaken;
+          }
+        }
+
+        // Bileklik: Düşük pil uyarısı (<%20)
+        if (bracelet && bracelet.batteryLevel !== undefined) {
+          const level = bracelet.batteryLevel;
+          if (level > 0 && level <= 20 && !lastBraceletLowBatRef.current) {
+            lastBraceletLowBatRef.current = true;
+            try {
+              const { createAlert } = require('../services/alertService');
+              await createAlert({
+                patientId: patientId,
+                type: 'device',
+                title: '🔋 Bileklik Pili Düşük',
+                message: `Bileklik pil seviyesi %${level}. Lütfen şarj edin.`,
+              });
+            } catch(e) {
+              console.log("Pil bildirimi oluşturulamadı", e);
+            }
+          } else if (level > 20) {
+            lastBraceletLowBatRef.current = false;
           }
         }
       })

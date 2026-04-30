@@ -136,6 +136,13 @@ public:
   bool shouldShutdown() {
     // Şarj oluyorsa asla kapanma
     if (chargeState == CHARGE_STATE_CHARGING) return false;
+    
+    // Voltaj çok düşükse pil bağlı değil, USB'den çalışıyor → kapanma
+    if (batteryVoltage < 1.5) {
+      DEBUG_PRINTLN("[GÜÇ] Pil bağlı değil (USB güç). Deep sleep atlanıyor.");
+      return false;
+    }
+    
     return isCritical;
   }
 
