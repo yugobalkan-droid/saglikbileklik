@@ -30,11 +30,11 @@
  * =========================================================
  */
 
-#include "config.h"
-#include "power_manager.h"
-#include "nrf_comm.h"
 #include "ble_service.h"
+#include "config.h"
 #include "firebase_sync.h"
+#include "nrf_comm.h"
+#include "power_manager.h"
 
 /* ─── Modül Örnekleri ────────────────────────────────────── */
 PowerManager power;
@@ -53,9 +53,9 @@ unsigned long lastBatteryCheck = 0;
 unsigned long lastBLENotify = 0;
 unsigned long lastNRFCheck = 0;
 unsigned long lastVibrateToggle = 0;
-unsigned long lastActivityTime = 0;  // Son aktivite zamanı (deep sleep için)
-unsigned long alarmStartTime = 0;    // Alarm başlangıç zamanı
-unsigned long lastFirebaseSync = 0;  // Son Firebase senkronizasyonu
+unsigned long lastActivityTime = 0; // Son aktivite zamanı (deep sleep için)
+unsigned long alarmStartTime = 0;   // Alarm başlangıç zamanı
+unsigned long lastFirebaseSync = 0; // Son Firebase senkronizasyonu
 
 /* ─── Alarm Deseni ───────────────────────────────────────── */
 // Titreşim deseni: [on_ms, off_ms, on_ms, off_ms, ...]
@@ -64,10 +64,17 @@ uint8_t alarmPatternIndex = 0;
 uint8_t alarmRepeatCount = 0;
 bool inAlarmPause = false;
 
+#include "soc/rtc_cntl_reg.h"
+#include "soc/soc.h"
+
 /* ─────────────────────────────────────────────────────────
    SETUP
    ───────────────────────────────────────────────────────── */
 void setup() {
+  // Brownout (Güç Kesintisi) Dedektörünü Kapat (WiFi açılırken reset atmaması
+  // için)
+  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
+
   Serial.begin(SERIAL_BAUD_RATE);
   delay(200);
 
@@ -95,7 +102,7 @@ void setup() {
     DEBUG_PRINTLN("[!] Pil kritik düzeyde! Deep Sleep'e geçiliyor...");
     criticalBatteryWarning();
     power.enterDeepSleep();
-    return;  // Asla buraya gelmez
+    return; // Asla buraya gelmez
   }
 
   // 3. NRF24L01
@@ -116,10 +123,12 @@ void setup() {
   // İlk sync loop'ta 60 sn sonra yapılacak
   fbSync.begin();
   fbSync.onAlarmTrigger([]() {
-    if (!alarmActive) triggerAlarm(ALARM_TYPE_APP_TRIGGER);
+    if (!alarmActive)
+      triggerAlarm(ALARM_TYPE_APP_TRIGGER);
   });
   fbSync.onAlarmStop([]() {
-    if (alarmActive) stopAlarm();
+    if (alarmActive)
+      stopAlarm();
   });
   DEBUG_PRINTLN("[FIREBASE] Yapılandırıldı. İlk sync 60 sn sonra.");
 
@@ -129,12 +138,12 @@ void setup() {
   lastActivityTime = millis();
 
   DEBUG_PRINTLN("\n══ Sistem Hazır ══");
-  DEBUG_PRINTF("Pil: %d%% (%.2fV) | Şarj: %s\n",
-               power.batteryPercent, power.batteryVoltage,
-               power.chargeState == 1 ? "Oluyor" : power.chargeState == 2 ? "Tam"
-                                                                          : "Hayır");
-  DEBUG_PRINTF("NRF24: %s | BLE: %s\n",
-               nrf.isReady ? "✅" : "❌",
+  DEBUG_PRINTF("Pil: %d%% (%.2fV) | Şarj: %s\n", power.batteryPercent,
+               power.batteryVoltage,
+               power.chargeState == 1   ? "Oluyor"
+               : power.chargeState == 2 ? "Tam"
+                                        : "Hayır");
+  DEBUG_PRINTF("NRF24: %s | BLE: %s\n", nrf.isReady ? "✅" : "❌",
                "✅ Yayında");
 }
 
@@ -190,8 +199,7 @@ void loop() {
     }
 
     DEBUG_PRINTF("[DURUM] Pil: %d%% (%.2fV) | Şarj: %d | BLE: %s\n",
-                 power.batteryPercent, power.batteryVoltage,
-                 power.chargeState,
+                 power.batteryPercent, power.batteryVoltage, power.chargeState,
                  ble.isConnected ? "Bağlı" : "Yayında");
   }
 
@@ -211,17 +219,16 @@ void loop() {
   if (now - lastFirebaseSync >= FIREBASE_SYNC_INTERVAL) {
     lastFirebaseSync = now;
     DEBUG_PRINTLN("[SYNC] Firebase senkronizasyonu başlıyor...");
-    
+
     // BLE'yi durdur (WiFi ile radyo çakışmasını önle)
     bool wasBleConnected = ble.isConnected;
     ble.stop();
     delay(200);
-    
+
     // Firebase sync
-    fbSync.syncAndDisconnect(
-      power.batteryPercent, power.batteryVoltage,
-      power.chargeState, alarmActive, wasBleConnected);
-    
+    fbSync.syncAndDisconnect(power.batteryPercent, power.batteryVoltage,
+                             power.chargeState, alarmActive, wasBleConnected);
+
     // BLE'yi tekrar başlat
     delay(200);
     ble.begin();
@@ -235,7 +242,8 @@ void loop() {
   // 6. GÜÇ TASARRUFU
   // ══════════════════════════════════════════════════════
   // Şarj oluyorsa veya alarm aktifse → uyuma
-  if (!alarmActive && power.chargeState != CHARGE_STATE_CHARGING && (now - lastActivityTime >= DEEP_SLEEP_IDLE_TIMEOUT)) {
+  if (!alarmActive && power.chargeState != CHARGE_STATE_CHARGING &&
+      (now - lastActivityTime >= DEEP_SLEEP_IDLE_TIMEOUT)) {
     DEBUG_PRINTLN("[GÜÇ] Uzun süre işlem yok, deep sleep'e geçiliyor...");
     ble.stop();
     nrf.powerDown();
@@ -251,7 +259,7 @@ void loop() {
    ───────────────────────────────────────────────────────── */
 
 // İlaç kutusundan NRF24 mesajı geldiğinde çağrılır
-void onMedicineAlertReceived(const char* msg) {
+void onMedicineAlertReceived(const char *msg) {
   DEBUG_PRINTLN("[ALARM] 💊 İlaç kutusu sinyali alındı!");
   if (!alarmActive) {
     triggerAlarm(ALARM_TYPE_MEDICINE);
@@ -349,9 +357,7 @@ void handleAlarmVibration(unsigned long now) {
 }
 
 // 2 motoru birlikte aç/kapa
-void setVibration(bool on) {
-  digitalWrite(VIBRO_MOTOR_PIN, on ? HIGH : LOW);
-}
+void setVibration(bool on) { digitalWrite(VIBRO_MOTOR_PIN, on ? HIGH : LOW); }
 
 /* ─────────────────────────────────────────────────────────
    BUTON FONKSİYONLARI
@@ -359,12 +365,14 @@ void setVibration(bool on) {
 
 void handleButton(unsigned long now) {
   // Harici buton veya BOOT butonu
-  bool isPressed = (digitalRead(BUTTON_PIN) == LOW) || (digitalRead(BOOT_BUTTON_PIN) == LOW);
+  bool isPressed =
+      (digitalRead(BUTTON_PIN) == LOW) || (digitalRead(BOOT_BUTTON_PIN) == LOW);
 
   if (isPressed) {
     delay(DEBOUNCE_MS);
     // Tekrar kontrol (debounce)
-    isPressed = (digitalRead(BUTTON_PIN) == LOW) || (digitalRead(BOOT_BUTTON_PIN) == LOW);
+    isPressed = (digitalRead(BUTTON_PIN) == LOW) ||
+                (digitalRead(BOOT_BUTTON_PIN) == LOW);
 
     if (isPressed && !buttonPressed) {
       buttonPressed = true;

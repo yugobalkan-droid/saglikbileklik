@@ -285,7 +285,7 @@ export default function DashboardScreen({ navigation }) {
           </View>
         </View>
 
-        {/* ── Bileklik BLE Widget ── */}
+        {/* ── Bileklik BLE/WiFi Widget ── */}
         <View style={styles.wristbandCard}>
           <View style={styles.wristbandHeader}>
             <View style={styles.wristbandTitleRow}>
@@ -293,39 +293,51 @@ export default function DashboardScreen({ navigation }) {
               <Text style={styles.wristbandTitle}>Bileklik</Text>
             </View>
             <View style={[styles.wristbandStatusDot, 
-              { backgroundColor: bleConnected ? colors.online : colors.offline }]} />
+              { backgroundColor: (bleConnected || deviceStatus?.bracelet?.status === 'online') ? colors.online : colors.offline }]} />
           </View>
 
-          {bleConnected ? (
+          {(bleConnected || deviceStatus?.bracelet?.status === 'online') ? (
             <View>
               {/* Pil & Şarj Bilgisi */}
               <View style={styles.wristbandInfoRow}>
                 <View style={styles.wristbandInfoItem}>
-                  <Ionicons name={batteryIcon} size={22} color={batteryColor} />
-                  <Text style={[styles.wristbandInfoValue, { color: batteryColor }]}>
-                    {batteryLevel !== null ? `${batteryLevel}%` : '--'}
+                  <Ionicons 
+                    name={bleConnected ? batteryIcon : 
+                         ((deviceStatus?.bracelet?.batteryLevel || 0) > 20 ? 'battery-full' : 'battery-dead')} 
+                    size={22} 
+                    color={bleConnected ? batteryColor : 
+                          ((deviceStatus?.bracelet?.batteryLevel || 0) > 20 ? colors.success : colors.accent)} 
+                  />
+                  <Text style={[styles.wristbandInfoValue, { color: bleConnected ? batteryColor : ((deviceStatus?.bracelet?.batteryLevel || 0) > 20 ? colors.success : colors.accent) }]}>
+                    {bleConnected ? (batteryLevel !== null ? `${batteryLevel}%` : '--') : 
+                     `${deviceStatus?.bracelet?.batteryLevel || 0}%`}
                   </Text>
                   <Text style={styles.wristbandInfoLabel}>Pil</Text>
                 </View>
                 <View style={styles.wristbandInfoDivider} />
                 <View style={styles.wristbandInfoItem}>
                   <Ionicons 
-                    name={chargeState === 1 ? 'flash' : chargeState === 2 ? 'checkmark-circle' : 'flash-off-outline'} 
+                    name={(bleConnected ? chargeState : deviceStatus?.bracelet?.chargeState) === 1 ? 'flash' : 
+                          (bleConnected ? chargeState : deviceStatus?.bracelet?.chargeState) === 2 ? 'checkmark-circle' : 'flash-off-outline'} 
                     size={22} 
-                    color={chargeState === 1 ? '#FBBC04' : chargeState === 2 ? colors.success : colors.textTertiary} 
+                    color={(bleConnected ? chargeState : deviceStatus?.bracelet?.chargeState) === 1 ? '#FBBC04' : 
+                           (bleConnected ? chargeState : deviceStatus?.bracelet?.chargeState) === 2 ? colors.success : colors.textTertiary} 
                   />
-                  <Text style={styles.wristbandInfoValue}>{chargeStateText}</Text>
+                  <Text style={styles.wristbandInfoValue}>
+                    {(bleConnected ? chargeState : deviceStatus?.bracelet?.chargeState) === 1 ? 'Şarj Oluyor' : 
+                     (bleConnected ? chargeState : deviceStatus?.bracelet?.chargeState) === 2 ? 'Dolu' : 'Hayır'}
+                  </Text>
                   <Text style={styles.wristbandInfoLabel}>Şarj</Text>
                 </View>
                 <View style={styles.wristbandInfoDivider} />
                 <View style={styles.wristbandInfoItem}>
                   <Ionicons 
-                    name={alarmActive ? 'notifications' : 'notifications-off-outline'} 
+                    name={(bleConnected ? alarmActive : deviceStatus?.bracelet?.alarmActive) ? 'notifications' : 'notifications-off-outline'} 
                     size={22} 
-                    color={alarmActive ? colors.accent : colors.textTertiary} 
+                    color={(bleConnected ? alarmActive : deviceStatus?.bracelet?.alarmActive) ? colors.accent : colors.textTertiary} 
                   />
                   <Text style={styles.wristbandInfoValue}>
-                    {alarmActive ? 'Aktif' : 'Kapalı'}
+                    {(bleConnected ? alarmActive : deviceStatus?.bracelet?.alarmActive) ? 'Aktif' : 'Kapalı'}
                   </Text>
                   <Text style={styles.wristbandInfoLabel}>Alarm</Text>
                 </View>
@@ -333,7 +345,7 @@ export default function DashboardScreen({ navigation }) {
 
               {/* Alarm Kontrol Butonları */}
               <View style={styles.wristbandActions}>
-                {alarmActive ? (
+                {(bleConnected ? alarmActive : deviceStatus?.bracelet?.alarmActive) ? (
                   <TouchableOpacity style={styles.wristbandStopBtn} onPress={stopAlarm}>
                     <Ionicons name="stop-circle-outline" size={18} color="#FFF" />
                     <Text style={styles.wristbandBtnText}>Alarmı Durdur</Text>
@@ -345,34 +357,40 @@ export default function DashboardScreen({ navigation }) {
                   </TouchableOpacity>
                 )}
                 <TouchableOpacity style={styles.wristbandDisconnectBtn} onPress={disconnectWristband}>
-                  <Ionicons name="bluetooth-outline" size={18} color={colors.accent} />
-                  <Text style={[styles.wristbandBtnText, { color: colors.accent }]}>Bağlantıyı Kes</Text>
+                  <Ionicons name={Platform.OS === 'web' ? 'wifi-outline' : 'bluetooth-outline'} size={18} color={colors.accent} />
+                  <Text style={[styles.wristbandBtnText, { color: colors.accent }]}>
+                    {Platform.OS === 'web' ? 'Yenile' : 'Bağlantıyı Kes'}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
           ) : (
             <View style={styles.wristbandDisconnected}>
               <Text style={styles.wristbandDisconnectedText}>
-                {bleStatus === 'scanning' ? 'Bileklik aranıyor...' :
+                {Platform.OS === 'web' ? 'Bileklik ağa bağlı değil (WiFi bekleniyor...)' :
+                 (bleStatus === 'scanning' ? 'Bileklik aranıyor...' :
                  bleStatus === 'connecting' ? 'Bağlanıyor...' :
                  bleStatus === 'not_found' ? 'Bileklik bulunamadı' :
                  bleStatus === 'failed' ? 'Bağlantı başarısız' :
-                 'Bileklik bağlı değil'}
+                 'Bileklik bağlı değil')}
               </Text>
-              <TouchableOpacity 
-                style={styles.wristbandConnectBtn} 
-                onPress={connectWristband}
-                disabled={bleScanning}
-              >
-                {bleScanning ? (
-                  <ActivityIndicator size="small" color="#FFF" />
-                ) : (
-                  <>
-                    <Ionicons name="bluetooth-outline" size={18} color="#FFF" />
-                    <Text style={styles.wristbandBtnText}>Bilekliği Bağla</Text>
-                  </>
-                )}
-              </TouchableOpacity>
+              
+              {Platform.OS !== 'web' && (
+                <TouchableOpacity 
+                  style={styles.wristbandConnectBtn} 
+                  onPress={connectWristband}
+                  disabled={bleScanning}
+                >
+                  {bleScanning ? (
+                    <ActivityIndicator size="small" color="#FFF" />
+                  ) : (
+                    <>
+                      <Ionicons name="bluetooth-outline" size={18} color="#FFF" />
+                      <Text style={styles.wristbandBtnText}>Bilekliği Bağla</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
             </View>
           )}
         </View>

@@ -18,8 +18,11 @@
 #include <Firebase_ESP_Client.h>
 #include <addons/RTDBHelper.h>
 #include <addons/TokenHelper.h>
-#include <ArduinoJson.h>
 #include "config.h"
+
+// Brownout ayarları için:
+#include "soc/soc.h"
+#include "soc/rtc_cntl_reg.h"
 
 class FirebaseSync {
 public:
@@ -48,6 +51,13 @@ public:
 
     DEBUG_PRINT("[WIFI] Bağlanıyor");
     WiFi.mode(WIFI_STA);
+    
+    // Güç yetmezliği (Brownout) resetlerini önlemek için WiFi gücünü düşür (Varsayılan 20dBm -> 8.5dBm)
+    WiFi.setTxPower(WIFI_POWER_MINUS_1dBm); // En düşük güç (-1dBm)
+    
+    // WiFi başlatılırken brownout'u zorla kapat
+    WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
+    
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
     int retries = 0;
@@ -56,6 +66,9 @@ public:
       delay(500);
       retries++;
     }
+    
+    // Bağlandıktan veya başarısız olduktan sonra tekrar açabiliriz
+    WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 1);
 
     if (WiFi.status() == WL_CONNECTED) {
       wifiConnected = true;
@@ -174,12 +187,21 @@ public:
     if (Firebase.Firestore.getDocument(&_fbdo, FIREBASE_PROJECT_ID, "",
         documentPath.c_str(), "")) {
       
-      JsonDocument doc;
-      auto error = deserializeJson(doc, _fbdo.payload());
-      if (error) return 0;
-
-      bool triggerAlert = doc["fields"]["triggerAlert"]["booleanValue"] | false;
-      bool stopAlert = doc["fields"]["stopAlert"]["booleanValue"] | false;
+      // FirebaseJson ile parse et (ArduinoJson gereksiz)
+      FirebaseJson payload;
+      payload.setJsonData(_fbdo.payload());
+      
+      FirebaseJsonData jsonData;
+      
+      bool triggerAlert = false;
+      bool stopAlert = false;
+      
+      if (payload.get(jsonData, "fields/triggerAlert/booleanValue")) {
+        triggerAlert = jsonData.boolValue;
+      }
+      if (payload.get(jsonData, "fields/stopAlert/booleanValue")) {
+        stopAlert = jsonData.boolValue;
+      }
 
       if (stopAlert) {
         clearField("stopAlert");
