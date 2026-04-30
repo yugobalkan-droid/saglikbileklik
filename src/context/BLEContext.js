@@ -6,7 +6,7 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { AppState } from 'react-native';
+import { AppState, Platform, Alert } from 'react-native';
 import * as BLEService from '../services/bleService';
 
 const BLEContext = createContext(null);
@@ -66,6 +66,17 @@ export function BLEProvider({ children }) {
 
   // Tara ve bağlan
   const connectWristband = useCallback(async () => {
+    // Web'de BLE çalışmaz
+    if (Platform.OS === 'web') {
+      Alert.alert(
+        'BLE Desteklenmiyor',
+        'Bluetooth bağlantısı sadece Android uygulamasında çalışır.\n\nBilekliğe bağlanmak için APK sürümünü kullanın.',
+        [{ text: 'Tamam' }]
+      );
+      setBleStatus('failed');
+      return false;
+    }
+
     setBleScanning(true);
     setBleStatus('scanning');
 
@@ -74,6 +85,15 @@ export function BLEProvider({ children }) {
     });
 
     setBleScanning(false);
+    
+    if (!success) {
+      Alert.alert(
+        'Bileklik Bulunamadı',
+        'CareSync bileklik cihazı bulunamadı.\n\n• Bilekliğin açık olduğundan emin olun\n• Bluetooth\'un açık olduğunu kontrol edin\n• Bilekliği telefonunuza yaklaştırın',
+        [{ text: 'Tamam' }]
+      );
+    }
+    
     return success;
   }, []);
 
