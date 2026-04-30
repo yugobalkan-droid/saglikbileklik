@@ -64,17 +64,10 @@ uint8_t alarmPatternIndex = 0;
 uint8_t alarmRepeatCount = 0;
 bool inAlarmPause = false;
 
-#include "soc/rtc_cntl_reg.h"
-#include "soc/soc.h"
-
 /* ─────────────────────────────────────────────────────────
    SETUP
    ───────────────────────────────────────────────────────── */
 void setup() {
-  // Brownout (Güç Kesintisi) Dedektörünü Kapat (WiFi açılırken reset atmaması
-  // için)
-  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
-
   Serial.begin(SERIAL_BAUD_RATE);
   delay(200);
 

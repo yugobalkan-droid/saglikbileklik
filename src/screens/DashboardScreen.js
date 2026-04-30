@@ -57,9 +57,27 @@ export default function DashboardScreen({ navigation }) {
     triggerAlarm,
     stopAlarm,
   } = useBLE();
+  const { triggerDeviceAlarm, stopDeviceAlarm } = require('../services/deviceService');
 
   const [showAddSheet, setShowAddSheet] = useState(false);
   const [seeding, setSeeding] = useState(false);
+
+  // Alarm işlemleri (Web ve BLE uyumlu)
+  const handleTriggerAlarm = async () => {
+    if (Platform.OS === 'web' || !bleConnected) {
+      await triggerDeviceAlarm(patientId);
+    } else {
+      triggerAlarm();
+    }
+  };
+
+  const handleStopAlarm = async () => {
+    if (Platform.OS === 'web' || !bleConnected) {
+      await stopDeviceAlarm(patientId);
+    } else {
+      stopAlarm();
+    }
+  };
 
   // Hasta ekleme state'leri
   const [showPatientSheet, setShowPatientSheet] = useState(false);
@@ -346,12 +364,12 @@ export default function DashboardScreen({ navigation }) {
               {/* Alarm Kontrol Butonları */}
               <View style={styles.wristbandActions}>
                 {(bleConnected ? alarmActive : deviceStatus?.bracelet?.alarmActive) ? (
-                  <TouchableOpacity style={styles.wristbandStopBtn} onPress={stopAlarm}>
+                  <TouchableOpacity style={styles.wristbandStopBtn} onPress={handleStopAlarm}>
                     <Ionicons name="stop-circle-outline" size={18} color="#FFF" />
                     <Text style={styles.wristbandBtnText}>Alarmı Durdur</Text>
                   </TouchableOpacity>
                 ) : (
-                  <TouchableOpacity style={styles.wristbandAlarmBtn} onPress={triggerAlarm}>
+                  <TouchableOpacity style={styles.wristbandAlarmBtn} onPress={handleTriggerAlarm}>
                     <Ionicons name="notifications-outline" size={18} color="#FFF" />
                     <Text style={styles.wristbandBtnText}>Alarm Gönder</Text>
                   </TouchableOpacity>

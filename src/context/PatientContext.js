@@ -76,7 +76,8 @@ export function PatientProvider({ children }) {
         
         // Kutu: Otonom alarm (ilaç saati geldi, alınmadı)
         if (box && box.lastAutonomousAlarm) {
-          if (lastAlarmRef.current !== box.lastAutonomousAlarm) {
+          const currentAlarmStr = String(box.lastAutonomousAlarm);
+          if (lastAlarmRef.current !== currentAlarmStr) {
             if (lastAlarmRef.current !== null) {
                try {
                  const { createAlert } = require('../services/alertService');
@@ -84,20 +85,21 @@ export function PatientProvider({ children }) {
                    patientId: patientId,
                    type: 'missed',
                    title: '⚠️ İlaç Alınmadı!',
-                   message: `İlaç saati geldi ancak ilaç henüz alınmadı. Saat: ${box.lastAutonomousAlarm}`,
-                   time: box.lastAutonomousAlarm,
+                   message: `İlaç saati geldi ancak ilaç henüz alınmadı. Saat: ${currentAlarmStr}`,
+                   time: currentAlarmStr,
                  });
                } catch(e) {
                  console.log("Alarm bildirimi oluşturulamadı", e);
                }
             }
-            lastAlarmRef.current = box.lastAutonomousAlarm;
+            lastAlarmRef.current = currentAlarmStr;
           }
         }
 
         // Kutu: İlaç alındı (buton basıldı)
         if (box && box.lastTaken) {
-          if (lastTakenRef.current !== box.lastTaken) {
+          const currentTakenStr = String(box.lastTaken);
+          if (lastTakenRef.current !== currentTakenStr) {
             if (lastTakenRef.current !== null) {
                try {
                  const { createAlert } = require('../services/alertService');
@@ -105,14 +107,14 @@ export function PatientProvider({ children }) {
                    patientId: patientId,
                    type: 'taken',
                    title: '✅ İlaç Alındı',
-                   message: `Hasta ilacını kutudan aldı. Saat: ${box.lastTaken}`,
-                   time: box.lastTaken,
+                   message: `Hasta ilacını kutudan aldı. Saat: ${currentTakenStr}`,
+                   time: currentTakenStr,
                  });
                } catch(e) {
                  console.log("Alındı bildirimi oluşturulamadı", e);
                }
             }
-            lastTakenRef.current = box.lastTaken;
+            lastTakenRef.current = currentTakenStr;
           }
         }
 

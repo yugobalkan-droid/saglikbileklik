@@ -20,10 +20,6 @@
 #include <addons/TokenHelper.h>
 #include "config.h"
 
-// Brownout ayarları için:
-#include "soc/soc.h"
-#include "soc/rtc_cntl_reg.h"
-
 class FirebaseSync {
 public:
   bool isReady = false;
@@ -55,9 +51,6 @@ public:
     // Güç yetmezliği (Brownout) resetlerini önlemek için WiFi gücünü düşür (Varsayılan 20dBm -> 8.5dBm)
     WiFi.setTxPower(WIFI_POWER_MINUS_1dBm); // En düşük güç (-1dBm)
     
-    // WiFi başlatılırken brownout'u zorla kapat
-    WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
-    
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
     int retries = 0;
@@ -66,9 +59,6 @@ public:
       delay(500);
       retries++;
     }
-    
-    // Bağlandıktan veya başarısız olduktan sonra tekrar açabiliriz
-    WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 1);
 
     if (WiFi.status() == WL_CONNECTED) {
       wifiConnected = true;

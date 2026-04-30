@@ -8,6 +8,7 @@ import {
   where,
   onSnapshot,
   serverTimestamp,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
@@ -83,22 +84,45 @@ export const updateDeviceStatus = async (deviceId, data) => {
 
 // Cihazın alarmını manuel olarak tekrar çaldırmak için triggerAlert bayrağını true yap
 export const triggerDeviceAlarm = async (patientId) => {
-  // Önce hastanın box cihazını bulalım (şu an demo sistemde tek bir box ID'miz var: esp32_medicine_box_01)
-  // Gerçek sistemde patientId'ye göre query atılır.
   const q = query(
     collection(db, COLLECTION),
-    where('patientId', '==', patientId),
-    where('type', '==', 'box')
+    where('patientId', '==', patientId)
   );
   const snapshot = await getDocs(q);
   
   if (!snapshot.empty) {
-    const boxDoc = snapshot.docs[0];
-    const docRef = doc(db, COLLECTION, boxDoc.id);
-    await updateDoc(docRef, {
-      triggerAlert: true,
-      lastResend: serverTimestamp(),
+    const batch = writeBatch(db);
+    snapshot.docs.forEach((deviceDoc) => {
+      const docRef = doc(db, COLLECTION, deviceDoc.id);
+      if (deviceDoc.data().type === 'box') {
+        batch.update(docRef, { triggerAlert: true, lastResend: serverTimestamp() });
+      } else if (deviceDoc.data().type === 'bracelet') {
+        batch.update(docRef, { alarmActive: true });
+      }
     });
+    await batch.commit();
+  }
+};
+
+// Cihazın alarmını durdurmak için
+export const stopDeviceAlarm = async (patientId) => {
+  const q = query(
+    collection(db, COLLECTION),
+    where('patientId', '==', patientId)
+  );
+  const snapshot = await getDocs(q);
+  
+  if (!snapshot.empty) {
+    const batch = writeBatch(db);
+    snapshot.docs.forEach((deviceDoc) => {
+      const docRef = doc(db, COLLECTION, deviceDoc.id);
+      if (deviceDoc.data().type === 'box') {
+        batch.update(docRef, { triggerAlert: false });
+      } else if (deviceDoc.data().type === 'bracelet') {
+        batch.update(docRef, { alarmActive: false });
+      }
+    });
+    await batch.commit();
   }
 };
 
