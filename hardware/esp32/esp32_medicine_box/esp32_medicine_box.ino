@@ -206,6 +206,11 @@ void loop() {
         beepState = !beepState;
         digitalWrite(LED_PIN, beepState ? HIGH : LOW);
         digitalWrite(BUZZER_PIN, beepState ? HIGH : LOW);
+        
+        // NRF Sinyalini tekrarlı gönder (Bilekliğin kaçırmaması garanti olsun)
+        if (beepState) {
+          sendNRFSignal();
+        }
       }
     }
   }

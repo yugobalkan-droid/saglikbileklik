@@ -10,6 +10,7 @@ import {
   limit,
   onSnapshot,
   serverTimestamp,
+  deleteDoc,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
@@ -94,4 +95,19 @@ export const markAllAsRead = async (patientId) => {
 // Okunmamış bildirim sayısı
 export const getUnreadCount = (alerts) => {
   return alerts.filter((a) => !a.isRead).length;
+};
+
+// Tüm bildirimleri tamamen sil (Temizlik için)
+export const deleteAllAlerts = async (patientId) => {
+  const q = query(
+    collection(db, COLLECTION),
+    where('patientId', '==', patientId)
+  );
+
+  const snapshot = await getDocs(q);
+  const deletePromises = snapshot.docs.map((docSnap) =>
+    deleteDoc(doc(db, COLLECTION, docSnap.id))
+  );
+
+  await Promise.all(deletePromises);
 };

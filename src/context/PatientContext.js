@@ -30,9 +30,8 @@ export function PatientProvider({ children }) {
   const lastAlarmRef = React.useRef(null);
   const lastMissedRef = React.useRef(null);
   const lastTakenRef = React.useRef(null);
-  const lastBraceletTakenRef = React.useRef(null);
   const lastBraceletLowBatRef = React.useRef(false);
-  const lastTakenNotifyTimeRef = React.useRef(0);
+  const lastAlertTimesRef = React.useRef({ reminder: 0, missed: 0, taken: 0, device: 0 });
 
   // İlk yükleme: bakıcının hastasını bul
   useEffect(() => {
@@ -76,24 +75,34 @@ export function PatientProvider({ children }) {
         // ── İLAÇ KUTUSU BİLDİRİMLERİ ──
         const box = devices.find(d => d.type === 'box');
         
+        // ── BİLDİRİM OLUŞTURMA DEBOUNCER'I ──
+        // Aynı tip bildirimin 1 dakika içinde tekrar tekrar oluşturulmasını KESİNLİKLE engeller.
+        const safeCreateAlert = async (alertType, payload) => {
+          const now = Date.now();
+          if (now - lastAlertTimesRef.current[alertType] < 60000) return; // 1 dk kısıtlaması
+          lastAlertTimesRef.current[alertType] = now;
+          
+          try {
+            const { createAlert } = require('../services/alertService');
+            await createAlert(payload);
+          } catch(e) {
+            console.log("Bildirim oluşturulamadı:", e);
+          }
+        };
+
         // ── KUTU: İLAÇ SAATİ GELDİ (Hatırlatıcı) ──
         if (box && box.lastAutonomousAlarm) {
           const currentAlarmStr = String(box.lastAutonomousAlarm);
           if (lastAlarmRef.current !== currentAlarmStr) {
             if (lastAlarmRef.current !== null) {
-               try {
-                 const { createAlert } = require('../services/alertService');
                  const timeStr = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
-                 await createAlert({
+                 safeCreateAlert('reminder', {
                    patientId: patientId,
                    type: 'reminder',
                    title: '🔔 İlaç Saati Geldi',
                    message: `İlaç saati geldi. Kutu alarm veriyor. (Saat: ${timeStr})`,
                    time: timeStr,
                  });
-               } catch(e) {
-                 console.log("Alarm bildirimi oluşturulamadı", e);
-               }
             }
             lastAlarmRef.current = currentAlarmStr;
           }
@@ -104,19 +113,14 @@ export function PatientProvider({ children }) {
           const currentMissedStr = String(box.lastMissedAlarm);
           if (lastMissedRef.current !== currentMissedStr) {
             if (lastMissedRef.current !== null) {
-               try {
-                 const { createAlert } = require('../services/alertService');
                  const timeStr = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
-                 await createAlert({
+                 safeCreateAlert('missed', {
                    patientId: patientId,
                    type: 'missed',
                    title: '⚠️ İlaç Alınmadı',
                    message: `10 dakika boyunca butona basılmadı. İlaç kaçırıldı. (Saat: ${timeStr})`,
                    time: timeStr,
                  });
-               } catch(e) {
-                 console.log("Kaçırıldı bildirimi oluşturulamadı", e);
-               }
             }
             lastMissedRef.current = currentMissedStr;
           }
@@ -124,25 +128,19 @@ export function PatientProvider({ children }) {
 
         // ── İLAÇ ALINDI (Birleştirilmiş ve Debounce Edilmiş) ──
         const handleTaken = async (timeStr) => {
-          const now = Date.now();
-          if (now - lastTakenNotifyTimeRef.current < 60000) return; // 1 dakika içinde zaten gönderildi
-          lastTakenNotifyTimeRef.current = now;
+          safeCreateAlert('taken', {
+            patientId: patientId,
+            type: 'taken',
+            title: '✅ İlaç Alındı',
+            message: `İlaç başarıyla alındı. (Saat: ${timeStr})`,
+            time: timeStr,
+          });
           
+          // Alındığı anda tüm cihazlardaki aktif alarmları durdur (Senkronizasyon)
           try {
-            const { createAlert } = require('../services/alertService');
-            await createAlert({
-              patientId: patientId,
-              type: 'taken',
-              title: '✅ İlaç Alındı',
-              message: `İlaç başarıyla alındı. (Saat: ${timeStr})`,
-              time: timeStr,
-            });
-            // Alındığı anda tüm cihazlardaki aktif alarmları durdur (Senkronizasyon)
             const { stopDeviceAlarm } = require('../services/deviceService');
             await stopDeviceAlarm(patientId);
-          } catch(e) {
-            console.log("Alındı bildirimi oluşturulamadı", e);
-          }
+          } catch(e) {}
         };
 
         if (box && box.lastTaken) {

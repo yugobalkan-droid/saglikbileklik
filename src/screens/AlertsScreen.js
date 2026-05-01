@@ -11,7 +11,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius, shadows } from '../theme';
 import AlertOverlay from '../components/AlertOverlay';
 import { usePatient } from '../context/PatientContext';
-import { markAsRead, markAllAsRead, resolveAlert } from '../services/alertService';
+import { markAsRead, markAllAsRead, resolveAlert, deleteAllAlerts } from '../services/alertService';
+import { Alert } from 'react-native';
 
 const getNotificationIcon = (type) => {
   switch (type) {
@@ -75,13 +76,35 @@ export default function AlertsScreen() {
     }
   };
 
-  const handleClearAll = async () => {
+  const handleMarkAllRead = async () => {
     if (!patientId) return;
     try {
       await markAllAsRead(patientId);
     } catch (e) {
       console.error('markAllAsRead error:', e);
     }
+  };
+
+  const handleDeleteAll = () => {
+    Alert.alert(
+      'Bildirimleri Sil',
+      'Tüm bildirim geçmişini tamamen silmek istediğinize emin misiniz?',
+      [
+        { text: 'İptal', style: 'cancel' },
+        { 
+          text: 'Sil', 
+          style: 'destructive', 
+          onPress: async () => {
+            if (!patientId) return;
+            try {
+              await deleteAllAlerts(patientId);
+            } catch (e) {
+              console.error('deleteAllAlerts error:', e);
+            }
+          }
+        }
+      ]
+    );
   };
 
   const handleResolve = async () => {
@@ -150,11 +173,18 @@ export default function AlertsScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Bildirimler</Text>
-          {unreadCount > 0 && (
-            <TouchableOpacity style={styles.clearBtn} onPress={handleClearAll}>
-              <Text style={styles.clearBtnText}>Tümünü Okundu Yap</Text>
-            </TouchableOpacity>
-          )}
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            {alerts.length > 0 && (
+              <TouchableOpacity style={styles.clearBtn} onPress={handleDeleteAll}>
+                <Text style={[styles.clearBtnText, { color: colors.accent }]}>Tümünü Sil</Text>
+              </TouchableOpacity>
+            )}
+            {unreadCount > 0 && (
+              <TouchableOpacity style={styles.clearBtn} onPress={handleMarkAllRead}>
+                <Text style={styles.clearBtnText}>Okundu Yap</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
         {/* Active Alert Banner */}
