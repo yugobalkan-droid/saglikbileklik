@@ -28,9 +28,11 @@ export function PatientProvider({ children }) {
   const [loading, setLoading] = useState(true);
   
   const lastAlarmRef = React.useRef(null);
+  const lastMissedRef = React.useRef(null);
   const lastTakenRef = React.useRef(null);
   const lastBraceletTakenRef = React.useRef(null);
   const lastBraceletLowBatRef = React.useRef(false);
+  const lastTakenNotifyTimeRef = React.useRef(0);
 
   // İlk yükleme: bakıcının hastasını bul
   useEffect(() => {
@@ -74,7 +76,7 @@ export function PatientProvider({ children }) {
         // ── İLAÇ KUTUSU BİLDİRİMLERİ ──
         const box = devices.find(d => d.type === 'box');
         
-        // Kutu: Otonom alarm (ilaç saati geldi, alınmadı)
+        // ── KUTU: İLAÇ SAATİ GELDİ (Hatırlatıcı) ──
         if (box && box.lastAutonomousAlarm) {
           const currentAlarmStr = String(box.lastAutonomousAlarm);
           if (lastAlarmRef.current !== currentAlarmStr) {
@@ -97,24 +99,58 @@ export function PatientProvider({ children }) {
           }
         }
 
-        // Kutu: İlaç alındı (buton basıldı)
+        // ── KUTU: İLAÇ KAÇIRILDI (10 DK ZAMAN AŞIMI) ──
+        if (box && box.lastMissedAlarm) {
+          const currentMissedStr = String(box.lastMissedAlarm);
+          if (lastMissedRef.current !== currentMissedStr) {
+            if (lastMissedRef.current !== null) {
+               try {
+                 const { createAlert } = require('../services/alertService');
+                 const timeStr = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+                 await createAlert({
+                   patientId: patientId,
+                   type: 'missed',
+                   title: '⚠️ İlaç Alınmadı',
+                   message: `10 dakika boyunca butona basılmadı. İlaç kaçırıldı. (Saat: ${timeStr})`,
+                   time: timeStr,
+                 });
+               } catch(e) {
+                 console.log("Kaçırıldı bildirimi oluşturulamadı", e);
+               }
+            }
+            lastMissedRef.current = currentMissedStr;
+          }
+        }
+
+        // ── İLAÇ ALINDI (Birleştirilmiş ve Debounce Edilmiş) ──
+        const handleTaken = async (timeStr) => {
+          const now = Date.now();
+          if (now - lastTakenNotifyTimeRef.current < 60000) return; // 1 dakika içinde zaten gönderildi
+          lastTakenNotifyTimeRef.current = now;
+          
+          try {
+            const { createAlert } = require('../services/alertService');
+            await createAlert({
+              patientId: patientId,
+              type: 'taken',
+              title: '✅ İlaç Alındı',
+              message: `İlaç başarıyla alındı. (Saat: ${timeStr})`,
+              time: timeStr,
+            });
+            // Alındığı anda tüm cihazlardaki aktif alarmları durdur (Senkronizasyon)
+            const { stopDeviceAlarm } = require('../services/deviceService');
+            await stopDeviceAlarm(patientId);
+          } catch(e) {
+            console.log("Alındı bildirimi oluşturulamadı", e);
+          }
+        };
+
         if (box && box.lastTaken) {
           const currentTakenStr = String(box.lastTaken);
           if (lastTakenRef.current !== currentTakenStr) {
             if (lastTakenRef.current !== null) {
-               try {
-                 const { createAlert } = require('../services/alertService');
                  const timeStr = box.medicineTakenAt ? new Date(box.medicineTakenAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
-                 await createAlert({
-                   patientId: patientId,
-                   type: 'taken',
-                   title: '✅ İlaç Alındı',
-                   message: `İlaç kutudan alındı. (Saat: ${timeStr})`,
-                   time: timeStr,
-                 });
-               } catch(e) {
-                 console.log("Alındı bildirimi oluşturulamadı", e);
-               }
+                 handleTaken(timeStr);
             }
             lastTakenRef.current = currentTakenStr;
           }
@@ -123,25 +159,14 @@ export function PatientProvider({ children }) {
         // ── BİLEKLİK BİLDİRİMLERİ ──
         const bracelet = devices.find(d => d.type === 'bracelet');
         
-        // Bileklik: İlaç onayı (bileklik butonuna basıldı)
         if (bracelet && bracelet.lastTaken) {
-          if (lastBraceletTakenRef.current !== bracelet.lastTaken) {
+          const currentTakenStr = String(bracelet.lastTaken);
+          if (lastBraceletTakenRef.current !== currentTakenStr) {
             if (lastBraceletTakenRef.current !== null) {
-              try {
-                const { createAlert } = require('../services/alertService');
                 const timeStr = bracelet.medicineTakenAt ? new Date(bracelet.medicineTakenAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
-                await createAlert({
-                  patientId: patientId,
-                  type: 'taken',
-                  title: '✅ İlaç Alındı (Bileklik)',
-                  message: `İlaç alındı onayı bileklikten gönderildi. (Saat: ${timeStr})`,
-                  time: timeStr,
-                });
-              } catch(e) {
-                console.log("Bileklik onay bildirimi oluşturulamadı", e);
-              }
+                handleTaken(timeStr);
             }
-            lastBraceletTakenRef.current = bracelet.lastTaken;
+            lastBraceletTakenRef.current = currentTakenStr;
           }
         }
 

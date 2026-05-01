@@ -82,6 +82,7 @@ String lastTriggeredAlarmTime =
 
 // Sürekli alarm (non-blocking) için değişkenler
 unsigned long lastBeepTime = 0;
+unsigned long alarmStartTime = 0;
 bool beepState = false;
 
 /* ─────────────────────────────────────────────────────────
@@ -192,12 +193,20 @@ void loop() {
   // ── Alarm Aktifse Sürekli Ötme (Non-blocking) ──
   if (alarmActive) {
     unsigned long currentMillis = millis();
-    // 500ms aralıklarla bip sesi (500ms açık, 500ms kapalı)
-    if (currentMillis - lastBeepTime >= 500) {
-      lastBeepTime = currentMillis;
-      beepState = !beepState;
-      digitalWrite(LED_PIN, beepState ? HIGH : LOW);
-      digitalWrite(BUZZER_PIN, beepState ? HIGH : LOW);
+    
+    // 10 dakika (600,000 ms) zaman aşımı kontrolü (İlaç kaçırıldı)
+    if (currentMillis - alarmStartTime >= 600000) {
+      Serial.println("[ALARM] 10 dakika geçti, butona basılmadı. İlaç kaçırıldı!");
+      stopAlarm();
+      sendMissedAlertToApp();
+    } else {
+      // 500ms aralıklarla bip sesi (500ms açık, 500ms kapalı)
+      if (currentMillis - lastBeepTime >= 500) {
+        lastBeepTime = currentMillis;
+        beepState = !beepState;
+        digitalWrite(LED_PIN, beepState ? HIGH : LOW);
+        digitalWrite(BUZZER_PIN, beepState ? HIGH : LOW);
+      }
     }
   }
 
@@ -393,6 +402,7 @@ void triggerAlarm() {
   alarmActive = true;
   beepState = true;
   lastBeepTime = millis();
+  alarmStartTime = millis();
   digitalWrite(LED_PIN, HIGH);
   digitalWrite(BUZZER_PIN, HIGH);
   Serial.println("[ALARM] Alarm başlatıldı! (Butona basılana kadar ötecek)");
@@ -416,6 +426,21 @@ void sendAlertToApp() {
                                          documentPath.c_str(), content.raw(),
                                          "lastAutonomousAlarm")) {
       Serial.println("[Firebase] Uygulamaya bildirim gönderildi (lastAutonomousAlarm güncellendi).");
+    }
+  }
+}
+
+// Uygulamaya ilacın kaçırıldığını (10 dk timeout) haber ver
+void sendMissedAlertToApp() {
+  if (Firebase.ready()) {
+    FirebaseJson content;
+    content.set("fields/lastMissedAlarm/stringValue", getCurrentTimeStr());
+    
+    String documentPath = "devices/" + deviceId;
+    if (Firebase.Firestore.patchDocument(&fbdo, PROJECT_ID, "",
+                                         documentPath.c_str(), content.raw(),
+                                         "lastMissedAlarm")) {
+      Serial.println("[Firebase] İlaç kaçırıldı (lastMissedAlarm) bildirildi.");
     }
   }
 }
