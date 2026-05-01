@@ -235,19 +235,11 @@ void loop() {
   }
 
   // ══════════════════════════════════════════════════
-  // 7. GÜÇ TASARRUFU
+  // 7. GÜÇ TASARRUFU (Deep Sleep iptal edildi)
   // ══════════════════════════════════════════════════
-  // USB güçle çalışıyorsa deep sleep'e girme!
-  bool canSleep = !power.isUsbPowered || !DISABLE_DEEP_SLEEP_ON_USB;
-  
-  // Şarj oluyorsa veya alarm aktifse → uyuma
-  if (canSleep && !alarmActive && power.chargeState != CHARGE_STATE_CHARGING &&
-      (now - lastActivityTime >= DEEP_SLEEP_IDLE_TIMEOUT)) {
-    DEBUG_PRINTLN("[GÜÇ] Uzun süre işlem yok, deep sleep'e geçiliyor...");
-    ble.stop();
-    nrf.powerDown();
-    power.enterDeepSleep();
-  }
+  // Bilekliğin alarm sinyallerini (NRF24) sürekli dinleyebilmesi için 
+  // boşta bekleme durumunda Deep Sleep'e girmesi iptal edilmiştir.
+  // Sadece kritik pil seviyesinde (batarya koruması için) uykuya geçilir.
 
   // Kısa bekleme (CPU yükünü azalt)
   delay(10);

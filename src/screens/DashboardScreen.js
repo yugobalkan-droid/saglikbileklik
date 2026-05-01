@@ -245,7 +245,7 @@ export default function DashboardScreen({ navigation }) {
                 />
                 <DeviceStatusBadge
                   label="Bileklik"
-                  status={(bleConnected || deviceStatus?.bracelet?.status === 'online') ? 'online' : 'offline'}
+                  status={(bleConnected || (deviceStatus?.bracelet?.status && deviceStatus.bracelet.status !== 'offline')) ? 'online' : 'offline'}
                   icon="watch-outline"
                   batteryLevel={bleConnected ? batteryLevel : deviceStatus?.bracelet?.batteryLevel}
                 />
@@ -311,10 +311,10 @@ export default function DashboardScreen({ navigation }) {
               <Text style={styles.wristbandTitle}>Bileklik</Text>
             </View>
             <View style={[styles.wristbandStatusDot, 
-              { backgroundColor: (bleConnected || deviceStatus?.box?.status === 'online') ? colors.online : colors.offline }]} />
+              { backgroundColor: (bleConnected || (deviceStatus?.box?.status && deviceStatus.box.status !== 'offline')) ? colors.online : colors.offline }]} />
           </View>
 
-          {(bleConnected || deviceStatus?.box?.status === 'online') ? (
+          {(bleConnected || (deviceStatus?.box?.status && deviceStatus.box.status !== 'offline')) ? (
             <View>
               {/* Pil & Şarj Bilgisi */}
               <View style={styles.wristbandInfoRow}>

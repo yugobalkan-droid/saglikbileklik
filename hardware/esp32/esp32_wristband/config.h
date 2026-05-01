@@ -100,7 +100,7 @@
 #define ALARM_PATTERN_COUNT       5       // Bir alarm döngüsündeki titreşim sayısı
 #define ALARM_REPEAT_DELAY_MS     2000    // Alarm döngüleri arası bekleme (ms)
 #define DEBOUNCE_MS               50      // Buton debounce süresi
-#define FIREBASE_SYNC_INTERVAL    60000   // 60 saniyede bir Firebase senkronizasyonu
+#define FIREBASE_SYNC_INTERVAL    15000   // 15 saniyede bir Firebase senkronizasyonu
 
 /* ─── Deep Sleep Ayarları ────────────────────────────────── */
 // 550mAh (13400Q3) ile daha rahat güç yönetimi
