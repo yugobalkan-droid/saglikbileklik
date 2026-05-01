@@ -2,9 +2,10 @@
  * =========================================================
  *  CareSync – Güç Yönetimi Modülü
  *  
- *  85mAh Li-Po pil + TP4056 şarj modülü yönetimi:
+ *  550mAh 13400Q3 Li-Ion pil + TP4056 şarj modülü yönetimi:
  *  - ADC ile pil voltajı ölçümü ve yüzde hesaplama
  *  - TP4056 CHRG/STDBY pin okuma
+ *  - USB güç algılama (pil bağlı değilken çalışma)
  *  - Düşük pil uyarısı
  *  - Deep Sleep modu ile güç tasarrufu
  * =========================================================
@@ -27,6 +28,7 @@ public:
   uint8_t  chargeState     = 0;     // 0=yok, 1=şarj oluyor, 2=tam
   bool     isLowBattery    = false;
   bool     isCritical      = false;
+  bool     isUsbPowered    = false; // USB güçle mi çalışıyor (pil yok)?
 
   /* ─── Başlatma ──────────────────────────────────────── */
   void begin() {
@@ -39,26 +41,61 @@ public:
     // ADC zayıflama: 11dB → 0-3.3V aralığı
     analogSetAttenuation(ADC_11db);
 
+    // USB güç algılama (pil bağlı mı kontrol et)
+    detectPowerSource();
+
     // İlk okuma
     updateBattery();
     updateChargeState();
 
     DEBUG_PRINTLN("[GÜÇ] Güç yönetimi başlatıldı.");
-    DEBUG_PRINTF("[GÜÇ] Pil: %.2fV (%d%%)\n", batteryVoltage, batteryPercent);
+    if (isUsbPowered) {
+      DEBUG_PRINTLN("[GÜÇ] ⚡ USB güç algılandı – pil kontrolleri devre dışı.");
+    } else {
+      DEBUG_PRINTF("[GÜÇ] Pil: %.2fV (%d%%)\n", batteryVoltage, batteryPercent);
+    }
   }
 
   /* ─── Pil Voltajını Oku ve Yüzde Hesapla ───────────── */
   void updateBattery() {
+    // USB güçle çalışıyorsa gerçek ADC okumasına gerek yok
+    if (isUsbPowered) {
+      batteryVoltage = 4.20;  // Sanal tam pil
+      batteryPercent = 100;
+      isLowBattery = false;
+      isCritical = false;
+      return;
+    }
+
     // Birden fazla okuma al ve ortalamasını hesapla (gürültü azaltma)
     uint32_t adcSum = 0;
+    uint32_t adcMin = 4095;
+    uint32_t adcMax = 0;
     const int SAMPLE_COUNT = 16;
 
     for (int i = 0; i < SAMPLE_COUNT; i++) {
-      adcSum += analogRead(BATTERY_ADC_PIN);
-      delayMicroseconds(100);
+      uint32_t val = analogRead(BATTERY_ADC_PIN);
+      adcSum += val;
+      if (val < adcMin) adcMin = val;
+      if (val > adcMax) adcMax = val;
+      delayMicroseconds(200);
     }
 
     uint32_t adcAvg = adcSum / SAMPLE_COUNT;
+
+    // Floating ADC algılama: Gerçek pil kararlı okur, floating ADC dalgalanır
+    // Min-Max farkı çok büyükse → pil bağlı değil
+    uint32_t adcSpread = adcMax - adcMin;
+    if (adcSpread > 200) {
+      // ADC çok kararsız → pil bağlı değil, muhtemelen USB güç
+      DEBUG_PRINTF("[GÜÇ] ⚠️ ADC kararsız (spread: %d) → Pil bağlı değil!\n", adcSpread);
+      isUsbPowered = true;
+      batteryVoltage = 4.20;
+      batteryPercent = 100;
+      isLowBattery = false;
+      isCritical = false;
+      return;
+    }
 
     // ADC değerini voltaja çevir
     // ESP32-S3 ADC: 12-bit, 0-3.3V referans (11dB attenuation)
@@ -101,6 +138,10 @@ public:
 
   /* ─── Tam Güncelleme ───────────────────────────────── */
   void update() {
+    // Periyodik güç kaynağı kontrolü
+    if (!isUsbPowered) {
+      detectPowerSource();
+    }
     updateBattery();
     updateChargeState();
   }
@@ -134,12 +175,18 @@ public:
 
   /* ─── Kritik Pil Kontrolü ──────────────────────────── */
   bool shouldShutdown() {
+    // USB güçle çalışıyorsa asla kapanma!
+    if (isUsbPowered) return false;
+
     // Şarj oluyorsa asla kapanma
     if (chargeState == CHARGE_STATE_CHARGING) return false;
     
     // Voltaj çok düşükse pil bağlı değil, USB'den çalışıyor → kapanma
-    if (batteryVoltage < 1.5) {
+    // Eşik 2.5V: Gerçek Li-Po asla 3.0V altına düşmez,
+    // 2.5V altı kesinlikle "pil bağlı değil" demek
+    if (batteryVoltage < 2.5) {
       DEBUG_PRINTLN("[GÜÇ] Pil bağlı değil (USB güç). Deep sleep atlanıyor.");
+      isUsbPowered = true;  // Otomatik USB moduna geç
       return false;
     }
     
@@ -148,15 +195,57 @@ public:
 
   /* ─── Tahmini Kalan Süre (dakika) ──────────────────── */
   uint16_t estimateRemainingMinutes() {
-    // Basit tahmin: 85mAh pil, ortalama ~15mA tüketim (BLE+NRF aktif)
-    // Deep sleep: ~0.01mA, aktif: ~30mA, ortalama: ~15mA
+    // Basit tahmin: 550mAh pil (13400Q3), ortalama ~20mA tüketim (BLE+NRF aktif)
+    // Deep sleep: ~0.01mA, aktif: ~35mA, ortalama: ~20mA
     float remainingMah = (batteryPercent / 100.0) * BATTERY_CAPACITY_MAH;
-    float avgCurrentMa = 15.0; // tahmini ortalama akım
+    float avgCurrentMa = 20.0; // tahmini ortalama akım
     float hours = remainingMah / avgCurrentMa;
     return (uint16_t)(hours * 60);
   }
 
 private:
+  /* ─── USB Güç Kaynağı Algılama ─────────────────────── */
+  // TP4056 pinlerini ve ADC'yi kullanarak güç kaynağını belirle
+  void detectPowerSource() {
+    bool chrg  = digitalRead(CHARGE_STATUS_PIN);  // LOW = şarj oluyor
+    bool stdby = digitalRead(CHARGE_DONE_PIN);    // LOW = şarj tamamlandı
+
+    // TP4056 bağlıysa ve şarj oluyorsa veya tamamsa → USB bağlı
+    if (!chrg || !stdby) {
+      // Şarj oluyor veya tam → pil var + USB bağlı, normal çalış
+      isUsbPowered = false;
+      return;
+    }
+
+    // Her iki pin de HIGH → ya pil var USB yok, ya da pil yok USB var
+    // ADC ile kontrol et: 3 ardışık okuma yap, kararlılığa bak
+    uint32_t readings[3];
+    for (int i = 0; i < 3; i++) {
+      readings[i] = analogRead(BATTERY_ADC_PIN);
+      delay(10);
+    }
+
+    // Okumalar arası fark
+    uint32_t maxVal = max(readings[0], max(readings[1], readings[2]));
+    uint32_t minVal = min(readings[0], min(readings[1], readings[2]));
+    uint32_t spread = maxVal - minVal;
+
+    // Ortalama voltaj
+    float avgAdc = (readings[0] + readings[1] + readings[2]) / 3.0;
+    float voltage = (avgAdc / 4095.0) * 3.3 * BATTERY_DIVIDER_RATIO;
+
+    // Karar mantığı:
+    // 1. ADC çok kararsız (spread > 150) → pil bağlı değil (floating)
+    // 2. Voltaj < 2.5V → pil bağlı değil (gerçek Li-Po min 3.0V)
+    // 3. ADC değeri çok düşük (< 100) → pin boşta
+    if (spread > 150 || voltage < 2.5 || avgAdc < 100) {
+      isUsbPowered = true;
+      DEBUG_PRINTF("[GÜÇ] USB güç algılandı (ADC spread:%d, V:%.2f)\n", spread, voltage);
+    } else {
+      isUsbPowered = false;
+    }
+  }
+
   /* ─── Voltajdan Yüzdeye Çevrim ─────────────────────── */
   // Li-Po discharge eğrisi (parçalı doğrusal yaklaşım)
   uint8_t voltageToPercent(float voltage) {

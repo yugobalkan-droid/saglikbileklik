@@ -32,6 +32,27 @@
         "projectId": "a046b756-e197-4891-aacc-9c8bbef7e556"
       }
     },
-    "owner": "saglikbileklik"
+    "owner": "saglikbileklik",
+    "plugins": [
+      [
+        "react-native-ble-plx",
+        {
+          "isBackgroundEnabled": true,
+          "modes": [
+            "peripheral",
+            "central"
+          ],
+          "bluetoothAlwaysPermission": "CareSync cihazınızla bağlantı kurmak için Bluetooth erişimi gereklidir."
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 24
+          }
+        }
+      ]
+    ]
   }
 }

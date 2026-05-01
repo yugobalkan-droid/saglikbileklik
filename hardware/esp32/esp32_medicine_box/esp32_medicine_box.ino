@@ -134,8 +134,8 @@ void setup() {
   }
 
   // ── NTP (Saat) Senkronizasyonu ──
-  // Türkiye saati: UTC+3
-  configTzTime("TRT-3", "pool.ntp.org", "time.nist.gov");
+  // Türkiye saati: UTC+3 (3 * 3600 = 10800 saniye ofset)
+  configTime(10800, 0, "pool.ntp.org", "time.nist.gov");
   Serial.print("[NTP] Saat bekleniyor");
   time_t now = time(nullptr);
   int ntpRetries = 0;
@@ -183,7 +183,7 @@ void loop() {
     time_t now = time(nullptr);
     if (now < 24 * 3600) {
       Serial.println("[NTP] Saat geçersiz, tekrar senkronize ediliyor...");
-      configTzTime("TRT-3", "pool.ntp.org", "time.nist.gov");
+      configTime(10800, 0, "pool.ntp.org", "time.nist.gov");
     } else {
       Serial.println("[ZAMAN] ESP32 Güncel Saat: " + getCurrentTimeStr() + " (Gün: " + getCurrentDayStr() + ")");
     }

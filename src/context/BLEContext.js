@@ -66,17 +66,6 @@ export function BLEProvider({ children }) {
 
   // Tara ve bağlan
   const connectWristband = useCallback(async () => {
-    // Web'de BLE çalışmaz
-    if (Platform.OS === 'web') {
-      Alert.alert(
-        'BLE Desteklenmiyor',
-        'Bluetooth bağlantısı sadece Android uygulamasında çalışır.\n\nBilekliğe bağlanmak için APK sürümünü kullanın.',
-        [{ text: 'Tamam' }]
-      );
-      setBleStatus('failed');
-      return false;
-    }
-
     setBleScanning(true);
     setBleStatus('scanning');
 

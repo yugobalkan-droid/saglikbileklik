@@ -22,10 +22,14 @@ const BLE_CHAR_DEVICE_INFO_UUID = '12345678-1234-5678-1234-56789abcdef5';
 
 const DEVICE_NAME = 'CareSync-Band';
 
-// BLE durumu
+// BLE durumu (Native)
 let manager = null;
 let connectedDevice = null;
 let isScanning = false;
+
+// BLE durumu (Web)
+let webDevice = null;
+let webGattServer = null;
 
 // Callback'ler
 let onBatteryUpdate = null;
@@ -201,6 +205,16 @@ export async function connectToWristband(device) {
  * Bileklikten bağlantıyı kes
  */
 export async function disconnectWristband() {
+  if (Platform.OS === 'web') {
+    if (webDevice && webDevice.gatt.connected) {
+      webDevice.gatt.disconnect();
+    }
+    webGattServer = null;
+    webDevice = null;
+    if (onConnectionChange) onConnectionChange(false);
+    return;
+  }
+
   if (connectedDevice) {
     try {
       await connectedDevice.cancelConnection();
@@ -216,6 +230,10 @@ export async function disconnectWristband() {
  * Tara ve bağlan (tek fonksiyon)
  */
 export async function scanAndConnect(onStatusUpdate = null) {
+  if (Platform.OS === 'web') {
+    return await connectWebBluetooth(onStatusUpdate);
+  }
+
   if (onStatusUpdate) onStatusUpdate('scanning');
   
   const device = await scanForWristband(10000);
@@ -345,6 +363,20 @@ async function readInitialValues() {
  * @param {boolean} activate - true=alarm başlat, false=alarm durdur
  */
 export async function sendAlarmCommand(activate) {
+  if (Platform.OS === 'web') {
+    if (!webGattServer) return false;
+    try {
+      const service = await webGattServer.getPrimaryService(BLE_SERVICE_UUID);
+      const char = await service.getCharacteristic(BLE_CHAR_ALARM_UUID);
+      await char.writeValue(new Uint8Array([activate ? 1 : 0]));
+      console.log(`[BLE-WEB] Alarm komutu gönderildi: ${activate ? 'AKTİF' : 'DURDUR'}`);
+      return true;
+    } catch (e) {
+      console.error('[BLE-WEB] Alarm gönderme hatası:', e);
+      return false;
+    }
+  }
+
   if (!connectedDevice) {
     console.warn('[BLE] Cihaz bağlı değil, alarm gönderilemedi.');
     return false;
@@ -390,6 +422,9 @@ export async function readDeviceInfo() {
  * Bağlantı durumunu kontrol et
  */
 export function isConnected() {
+  if (Platform.OS === 'web') {
+    return webGattServer !== null;
+  }
   return connectedDevice !== null;
 }
 
@@ -415,12 +450,105 @@ export function setCallbacks({ onBattery, onCharge, onAlarm, onMedicine, onConne
  * BLE temizlik (uygulama kapanırken çağır)
  */
 export function cleanup() {
+  if (Platform.OS === 'web') {
+    if (webDevice && webDevice.gatt.connected) {
+      webDevice.gatt.disconnect();
+    }
+    webGattServer = null;
+    webDevice = null;
+    return;
+  }
+
   if (connectedDevice) {
     try { connectedDevice.cancelConnection(); } catch (e) {}
   }
   if (manager) {
     manager.destroy();
     manager = null;
+  }
+}
+
+// ── Web Bluetooth Fonksiyonları ──────────────────────────────
+
+async function connectWebBluetooth(onStatusUpdate) {
+  try {
+    if (!navigator.bluetooth) {
+      alert('Tarayıcınız Web Bluetooth desteklemiyor. Lütfen Chrome, Edge veya uyumlu bir tarayıcı kullanın.');
+      if (onStatusUpdate) onStatusUpdate('failed');
+      return false;
+    }
+
+    if (onStatusUpdate) onStatusUpdate('scanning');
+    
+    webDevice = await navigator.bluetooth.requestDevice({
+      filters: [{ services: [BLE_SERVICE_UUID] }],
+      optionalServices: [BLE_SERVICE_UUID]
+    });
+
+    if (onStatusUpdate) onStatusUpdate('connecting');
+
+    webDevice.addEventListener('gattserverdisconnected', () => {
+      console.log('[BLE-WEB] Bağlantı koptu.');
+      webGattServer = null;
+      webDevice = null;
+      if (onConnectionChange) onConnectionChange(false);
+    });
+
+    webGattServer = await webDevice.gatt.connect();
+    console.log('[BLE-WEB] ✅ GATT Bağlantısı başarılı!');
+
+    if (onConnectionChange) onConnectionChange(true);
+
+    const service = await webGattServer.getPrimaryService(BLE_SERVICE_UUID);
+
+    // Karakteristikleri ayarla
+    await setupWebCharacteristic(service, BLE_CHAR_BATTERY_UUID, (val) => {
+      const level = val.getUint8(0);
+      console.log(`[BLE-WEB] 🔋 Pil: ${level}%`);
+      if (onBatteryUpdate) onBatteryUpdate(level);
+    });
+
+    await setupWebCharacteristic(service, BLE_CHAR_CHARGE_UUID, (val) => {
+      const state = val.getUint8(0);
+      console.log(`[BLE-WEB] ⚡ Şarj: ${state}`);
+      if (onChargeUpdate) onChargeUpdate(state);
+    });
+
+    await setupWebCharacteristic(service, BLE_CHAR_ALARM_UUID, (val) => {
+      const active = val.getUint8(0) === 1;
+      console.log(`[BLE-WEB] 🔔 Alarm: ${active ? 'AKTİF' : 'Kapalı'}`);
+      if (onAlarmUpdate) onAlarmUpdate(active);
+    });
+
+    await setupWebCharacteristic(service, BLE_CHAR_MEDICINE_UUID, (val) => {
+      console.log('[BLE-WEB] 💊 İlaç onay bildirimi alındı!');
+      if (onMedicineConfirm) onMedicineConfirm();
+    });
+
+    if (onStatusUpdate) onStatusUpdate('connected');
+    return true;
+
+  } catch (error) {
+    console.error('[BLE-WEB] Web Bluetooth hatası:', error);
+    webGattServer = null;
+    webDevice = null;
+    if (onStatusUpdate) onStatusUpdate('failed');
+    return false;
+  }
+}
+
+async function setupWebCharacteristic(service, uuid, onRead) {
+  try {
+    const char = await service.getCharacteristic(uuid);
+    await char.startNotifications();
+    char.addEventListener('characteristicvaluechanged', (event) => {
+      onRead(event.target.value);
+    });
+    // İlk değeri oku
+    const initialVal = await char.readValue();
+    onRead(initialVal);
+  } catch (e) {
+    console.warn(`[BLE-WEB] Karakteristik okunamadı: ${uuid}`, e);
   }
 }
 

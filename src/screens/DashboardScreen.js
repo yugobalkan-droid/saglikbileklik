@@ -311,39 +311,36 @@ export default function DashboardScreen({ navigation }) {
               <Text style={styles.wristbandTitle}>Bileklik</Text>
             </View>
             <View style={[styles.wristbandStatusDot, 
-              { backgroundColor: (bleConnected || deviceStatus?.bracelet?.status === 'online') ? colors.online : colors.offline }]} />
+              { backgroundColor: (bleConnected || deviceStatus?.box?.status === 'online') ? colors.online : colors.offline }]} />
           </View>
 
-          {(bleConnected || deviceStatus?.bracelet?.status === 'online') ? (
+          {(bleConnected || deviceStatus?.box?.status === 'online') ? (
             <View>
               {/* Pil & Şarj Bilgisi */}
               <View style={styles.wristbandInfoRow}>
                 <View style={styles.wristbandInfoItem}>
                   <Ionicons 
-                    name={bleConnected ? batteryIcon : 
-                         ((deviceStatus?.bracelet?.batteryLevel || 0) > 20 ? 'battery-full' : 'battery-dead')} 
+                    name={bleConnected ? batteryIcon : 'battery-full'} 
                     size={22} 
-                    color={bleConnected ? batteryColor : 
-                          ((deviceStatus?.bracelet?.batteryLevel || 0) > 20 ? colors.success : colors.accent)} 
+                    color={bleConnected ? batteryColor : colors.success} 
                   />
-                  <Text style={[styles.wristbandInfoValue, { color: bleConnected ? batteryColor : ((deviceStatus?.bracelet?.batteryLevel || 0) > 20 ? colors.success : colors.accent) }]}>
-                    {bleConnected ? (batteryLevel !== null ? `${batteryLevel}%` : '--') : 
-                     `${deviceStatus?.bracelet?.batteryLevel || 0}%`}
+                  <Text style={[styles.wristbandInfoValue, { color: bleConnected ? batteryColor : colors.success }]}>
+                    {bleConnected ? (batteryLevel !== null ? `${batteryLevel}%` : '--') : 'Kutuya Bağlı'}
                   </Text>
-                  <Text style={styles.wristbandInfoLabel}>Pil</Text>
+                  <Text style={styles.wristbandInfoLabel}>Durum</Text>
                 </View>
                 <View style={styles.wristbandInfoDivider} />
                 <View style={styles.wristbandInfoItem}>
                   <Ionicons 
-                    name={(bleConnected ? chargeState : deviceStatus?.bracelet?.chargeState) === 1 ? 'flash' : 
-                          (bleConnected ? chargeState : deviceStatus?.bracelet?.chargeState) === 2 ? 'checkmark-circle' : 'flash-off-outline'} 
+                    name={(bleConnected ? chargeState : 0) === 1 ? 'flash' : 
+                          (bleConnected ? chargeState : 0) === 2 ? 'checkmark-circle' : 'flash-off-outline'} 
                     size={22} 
-                    color={(bleConnected ? chargeState : deviceStatus?.bracelet?.chargeState) === 1 ? '#FBBC04' : 
-                           (bleConnected ? chargeState : deviceStatus?.bracelet?.chargeState) === 2 ? colors.success : colors.textTertiary} 
+                    color={(bleConnected ? chargeState : 0) === 1 ? '#FBBC04' : 
+                           (bleConnected ? chargeState : 0) === 2 ? colors.success : colors.textTertiary} 
                   />
                   <Text style={styles.wristbandInfoValue}>
-                    {(bleConnected ? chargeState : deviceStatus?.bracelet?.chargeState) === 1 ? 'Şarj Oluyor' : 
-                     (bleConnected ? chargeState : deviceStatus?.bracelet?.chargeState) === 2 ? 'Dolu' : 'Hayır'}
+                    {(bleConnected ? chargeState : 0) === 1 ? 'Şarj Oluyor' : 
+                     (bleConnected ? chargeState : 0) === 2 ? 'Dolu' : 'Bilinmiyor'}
                   </Text>
                   <Text style={styles.wristbandInfoLabel}>Şarj</Text>
                 </View>
@@ -385,7 +382,7 @@ export default function DashboardScreen({ navigation }) {
           ) : (
             <View style={styles.wristbandDisconnected}>
               <Text style={styles.wristbandDisconnectedText}>
-                {Platform.OS === 'web' ? 'Bileklik ağa bağlı değil (WiFi bekleniyor...)' :
+                {Platform.OS === 'web' ? 'Bileklik ağa bağlı değil (Kutu çevrimdışı)' :
                  (bleStatus === 'scanning' ? 'Bileklik aranıyor...' :
                  bleStatus === 'connecting' ? 'Bağlanıyor...' :
                  bleStatus === 'not_found' ? 'Bileklik bulunamadı' :

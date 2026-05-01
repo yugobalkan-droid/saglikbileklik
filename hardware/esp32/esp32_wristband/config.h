@@ -4,9 +4,9 @@
  *  
  *  Donanım Özellikleri:
  *    - ESP32-S3 (BLE 5.0 destekli)
- *    - 85mAh 3.7V Li-Po Pil
+ *    - 550mAh 3.7V Li-Ion Pil (13400Q3)
  *    - TP4056 Şarj Modülü (USB-C)
- *    - 2x Titreşim Motoru
+ *    - 1x Titreşim Motoru
  *    - NRF24L01 RF Modülü (İlaç kutusu ile haberleşme)
  *    - 1x Push Button (ilaç onay)
  *    - 1x Durum LED'i
@@ -18,7 +18,7 @@
 
 /* ─── Cihaz Bilgileri ────────────────────────────────────── */
 #define DEVICE_NAME           "CareSync-Band"
-#define FIRMWARE_VERSION      "2.1.0"
+#define FIRMWARE_VERSION      "2.2.0"
 #define DEVICE_ID             "esp32_wristband_01"
 
 /* ─── WiFi Ayarları ───────────────────────────────────── */
@@ -56,7 +56,7 @@
 #define BATTERY_EMPTY_VOLTAGE   3.00  // %0 - kapanma eşiği
 
 // Pil kapasitesi
-#define BATTERY_CAPACITY_MAH    85    // 85mAh Li-Po
+#define BATTERY_CAPACITY_MAH    550   // 550mAh Li-Ion (13400Q3)
 
 /* ─── TP4056 Şarj Modülü ────────────────────────────────── */
 // TP4056'nın durum pinleri (aktif LOW)
@@ -87,7 +87,7 @@
 #define BLE_CHAR_MEDICINE_UUID      "12345678-1234-5678-1234-56789abcdef4"
 #define BLE_CHAR_DEVICE_INFO_UUID   "12345678-1234-5678-1234-56789abcdef5"
 
-// BLE Advertising aralığı (ms) – 85mAh pil için tasarruflu
+// BLE Advertising aralığı (ms) – 550mAh pil için optimize
 #define BLE_ADV_INTERVAL_MIN  320   // 200ms (320 * 0.625ms)
 #define BLE_ADV_INTERVAL_MAX  480   // 300ms (480 * 0.625ms)
 
@@ -103,10 +103,11 @@
 #define FIREBASE_SYNC_INTERVAL    60000   // 60 saniyede bir Firebase senkronizasyonu
 
 /* ─── Deep Sleep Ayarları ────────────────────────────────── */
-// 85mAh ile tasarruf kritik!
-#define DEEP_SLEEP_IDLE_TIMEOUT   300000  // 5 dakika işlem yoksa deep sleep
+// 550mAh (13400Q3) ile daha rahat güç yönetimi
+#define DEEP_SLEEP_IDLE_TIMEOUT   600000  // 10 dakika işlem yoksa deep sleep
 #define DEEP_SLEEP_WAKEUP_PIN     BUTTON_PIN  // Buton ile uyan
 #define LIGHT_SLEEP_NRF_INTERVAL  2000    // Light sleep'te 2 sn'de bir NRF kontrol
+#define DISABLE_DEEP_SLEEP_ON_USB true    // USB güçte deep sleep'i devre dışı bırak
 
 /* ─── Alarm Tipleri ──────────────────────────────────────── */
 #define ALARM_TYPE_MEDICINE     1   // İlaç saati alarmı

@@ -7,7 +7,7 @@
  *    ✅ 2x Titreşim motoru ile alarm bildirimi
  *    ✅ NRF24L01 ile ilaç kutusu haberleşmesi (RX + TX)
  *    ✅ BLE 5.0 ile mobil uygulama bağlantısı
- *    ✅ 85mAh Li-Po pil + TP4056 şarj yönetimi
+ *    ✅ 550mAh Li-Ion pil (13400Q3) + TP4056 şarj yönetimi
  *    ✅ ADC ile pil seviyesi ölçümü
  *    ✅ Deep Sleep güç tasarrufu
  *    ✅ Buton ile ilaç onayı
@@ -32,15 +32,15 @@
 
 #include "ble_service.h"
 #include "config.h"
-#include "firebase_sync.h"
 #include "nrf_comm.h"
 #include "power_manager.h"
+#include "firebase_sync.h"
 
 /* ─── Modül Örnekleri ────────────────────────────────────── */
 PowerManager power;
 NRFComm nrf;
 CareSyncBLE ble;
-FirebaseSync fbSync;
+FirebaseSync firebase;
 
 /* ─── Durum Değişkenleri ─────────────────────────────────── */
 bool alarmActive = false;
@@ -57,6 +57,24 @@ unsigned long lastActivityTime = 0; // Son aktivite zamanı (deep sleep için)
 unsigned long alarmStartTime = 0;   // Alarm başlangıç zamanı
 unsigned long lastFirebaseSync = 0; // Son Firebase senkronizasyonu
 
+/* ─── Fonksiyon Bildirimleri ─────────────────────────────── */
+void triggerAlarm(uint8_t type);
+void stopAlarm();
+
+void onFirebaseAlarmTrigger() {
+  if (!alarmActive) {
+    DEBUG_PRINTLN("[FIREBASE] Buluttan alarm tetiklendi!");
+    triggerAlarm(ALARM_TYPE_APP_TRIGGER);
+  }
+}
+
+void onFirebaseAlarmStop() {
+  if (alarmActive) {
+    DEBUG_PRINTLN("[FIREBASE] Buluttan alarm durdurma komutu geldi!");
+    stopAlarm();
+  }
+}
+
 /* ─── Alarm Deseni ───────────────────────────────────────── */
 // Titreşim deseni: [on_ms, off_ms, on_ms, off_ms, ...]
 // İlaç alarmı: Güçlü, ritmik titreşim
@@ -72,7 +90,7 @@ void setup() {
   delay(200);
 
   DEBUG_PRINTLN("\n╔══════════════════════════════════════╗");
-  DEBUG_PRINTLN("║   CareSync Bileklik v2.0 Başlıyor   ║");
+  DEBUG_PRINTLN("║   CareSync Bileklik v2.2 Başlıyor   ║");
   DEBUG_PRINTLN("╚══════════════════════════════════════╝");
 
   // ── Pin Kurulumu ──
@@ -91,11 +109,14 @@ void setup() {
   power.begin();
 
   // 2. Kritik pil kontrolü: Çok düşükse hemen uyu
-  if (power.shouldShutdown()) {
+  //    USB güç algılandıysa bu adımı atla!
+  if (!power.isUsbPowered && power.shouldShutdown()) {
     DEBUG_PRINTLN("[!] Pil kritik düzeyde! Deep Sleep'e geçiliyor...");
     criticalBatteryWarning();
     power.enterDeepSleep();
     return; // Asla buraya gelmez
+  } else if (power.isUsbPowered) {
+    DEBUG_PRINTLN("[✓] USB güç modu – pil kontrolü atlandı.");
   }
 
   // 3. NRF24L01
@@ -104,26 +125,19 @@ void setup() {
     nrf.onMedicineAlert(onMedicineAlertReceived);
   }
 
-  // 4. BLE Servisi
+  // 4. BLE Servisi (NRF24'ten sonra biraz bekle – bellek çakışmasını önle)
+  delay(100);
   ble.begin();
   ble.onAlarmCommand(onBLEAlarmCommand);
+
+  // 5. Firebase
+  firebase.begin();
+  firebase.onAlarmTrigger(onFirebaseAlarmTrigger);
+  firebase.onAlarmStop(onFirebaseAlarmStop);
 
   // İlk durum güncellemesi
   ble.updateBatteryLevel(power.batteryPercent);
   ble.updateChargeState(power.chargeState);
-
-  // 5. Firebase (WiFi'yi setup'ta AÇMA – güç yetersizliğine karşı)
-  // İlk sync loop'ta 60 sn sonra yapılacak
-  fbSync.begin();
-  fbSync.onAlarmTrigger([]() {
-    if (!alarmActive)
-      triggerAlarm(ALARM_TYPE_APP_TRIGGER);
-  });
-  fbSync.onAlarmStop([]() {
-    if (alarmActive)
-      stopAlarm();
-  });
-  DEBUG_PRINTLN("[FIREBASE] Yapılandırıldı. İlk sync 60 sn sonra.");
 
   // ── Başlangıç Testi ──
   startupFeedback();
@@ -131,6 +145,7 @@ void setup() {
   lastActivityTime = millis();
 
   DEBUG_PRINTLN("\n══ Sistem Hazır ══");
+  DEBUG_PRINTF("Güç Modu: %s\n", power.isUsbPowered ? "⚡ USB" : "🔋 Pil");
   DEBUG_PRINTF("Pil: %d%% (%.2fV) | Şarj: %s\n", power.batteryPercent,
                power.batteryVoltage,
                power.chargeState == 1   ? "Oluyor"
@@ -138,6 +153,8 @@ void setup() {
                                         : "Hayır");
   DEBUG_PRINTF("NRF24: %s | BLE: %s\n", nrf.isReady ? "✅" : "❌",
                "✅ Yayında");
+  DEBUG_PRINTF("Deep Sleep: %s\n", 
+               (power.isUsbPowered && DISABLE_DEEP_SLEEP_ON_USB) ? "❌ Devre Dışı" : "✅ Aktif");
 }
 
 /* ─────────────────────────────────────────────────────────
@@ -174,8 +191,8 @@ void loop() {
     lastBatteryCheck = now;
     power.update();
 
-    // Kritik pil → deep sleep
-    if (power.shouldShutdown()) {
+    // Kritik pil → deep sleep (USB güçte atla!)
+    if (!power.isUsbPowered && power.shouldShutdown()) {
       DEBUG_PRINTLN("[!] Pil kritik! Kapatılıyor...");
       stopAlarm();
       ble.updateBatteryLevel(0);
@@ -211,31 +228,20 @@ void loop() {
   // ══════════════════════════════════════════════════
   if (now - lastFirebaseSync >= FIREBASE_SYNC_INTERVAL) {
     lastFirebaseSync = now;
-    DEBUG_PRINTLN("[SYNC] Firebase senkronizasyonu başlıyor...");
-
-    // BLE'yi durdur (WiFi ile radyo çakışmasını önle)
-    bool wasBleConnected = ble.isConnected;
-    ble.stop();
-    delay(200);
-
-    // Firebase sync
-    fbSync.syncAndDisconnect(power.batteryPercent, power.batteryVoltage,
-                             power.chargeState, alarmActive, wasBleConnected);
-
-    // BLE'yi tekrar başlat
-    delay(200);
-    ble.begin();
-    ble.onAlarmCommand(onBLEAlarmCommand);
-    ble.updateBatteryLevel(power.batteryPercent);
-    ble.updateChargeState(power.chargeState);
-    DEBUG_PRINTLN("[SYNC] ✅ Sync tamamlandı, BLE tekrar aktif.");
+    DEBUG_PRINTLN("[SİSTEM] Firebase senkronizasyonu başlatılıyor...");
+    
+    // Firebase'e bağlan, durumu senkronize et ve WiFi'yi kapat
+    firebase.syncAndDisconnect(power.batteryPercent, power.batteryVoltage, power.chargeState, alarmActive, false);
   }
 
-  // ══════════════════════════════════════════════════════
-  // 6. GÜÇ TASARRUFU
-  // ══════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════
+  // 7. GÜÇ TASARRUFU
+  // ══════════════════════════════════════════════════
+  // USB güçle çalışıyorsa deep sleep'e girme!
+  bool canSleep = !power.isUsbPowered || !DISABLE_DEEP_SLEEP_ON_USB;
+  
   // Şarj oluyorsa veya alarm aktifse → uyuma
-  if (!alarmActive && power.chargeState != CHARGE_STATE_CHARGING &&
+  if (canSleep && !alarmActive && power.chargeState != CHARGE_STATE_CHARGING &&
       (now - lastActivityTime >= DEEP_SLEEP_IDLE_TIMEOUT)) {
     DEBUG_PRINTLN("[GÜÇ] Uzun süre işlem yok, deep sleep'e geçiliyor...");
     ble.stop();
@@ -386,11 +392,15 @@ void handleButton(unsigned long now) {
         // 3. BLE üzerinden app'e bildir
         ble.notifyMedicineTaken();
 
-        // 4. Firebase'e ilaç alındı kaydı gönder
-        fbSync.confirmMedicineTaken();
-
-        // 5. Onay titreşimi (2 kısa bip)
+        // 4. Onay titreşimi (2 kısa bip)
         confirmFeedback();
+
+        // 5. Firebase'e doğrudan bildir
+        DEBUG_PRINTLN("[FIREBASE] İlaç alındı onayı buluta gönderiliyor...");
+        if (firebase.confirmMedicineTaken()) {
+          DEBUG_PRINTLN("[FIREBASE] İlaç alındı onayı başarıyla gönderildi.");
+        }
+        firebase.disconnectWiFi();
 
       } else {
         // ── Alarm yokken: Durum göster (kısa LED blink) ──
