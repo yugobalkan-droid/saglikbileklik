@@ -311,7 +311,12 @@ export default function SettingsScreen() {
         triggerAlert: true,
         updatedAt: serverTimestamp()
       });
-      Alert.alert('Test Gönderildi', 'ESP32 cihazına test sinyali gönderildi! Kutu üzerindeki LED yanmalı ve Buzzer sesli uyarı vermelidir.');
+      const braceletRef = doc(db, 'devices', 'esp32_wristband_01');
+      await updateDoc(braceletRef, {
+        triggerAlert: true,
+        updatedAt: serverTimestamp()
+      });
+      Alert.alert('Test Gönderildi', 'Cihazlara test sinyali gönderildi! Kutu alarm vermeli ve bileklik titreşmelidir.');
     } catch (error) {
       Alert.alert('Hata', 'Test sinyali gönderilemedi. Cihazın Firebase ile eşleştiğinden emin olun. Hata: ' + error.message);
     }
@@ -325,7 +330,12 @@ export default function SettingsScreen() {
         stopAlert: true,
         updatedAt: serverTimestamp()
       });
-      Alert.alert('Test Durduruldu', 'ESP32 cihazına testi durdurma sinyali gönderildi! LED ve alarm kapanacaktır.');
+      const braceletRef = doc(db, 'devices', 'esp32_wristband_01');
+      await updateDoc(braceletRef, {
+        stopAlert: true,
+        updatedAt: serverTimestamp()
+      });
+      Alert.alert('Test Durduruldu', 'Cihazlara testi durdurma sinyali gönderildi! LED, alarm ve titreşim kapanacaktır.');
     } catch (error) {
       Alert.alert('Hata', 'Test durdurma sinyali gönderilemedi. Hata: ' + error.message);
     }

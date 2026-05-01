@@ -245,9 +245,9 @@ export default function DashboardScreen({ navigation }) {
                 />
                 <DeviceStatusBadge
                   label="Bileklik"
-                  status={bleConnected ? 'online' : 'offline'}
+                  status={(bleConnected || deviceStatus?.bracelet?.status === 'online') ? 'online' : 'offline'}
                   icon="watch-outline"
-                  batteryLevel={bleConnected ? batteryLevel : null}
+                  batteryLevel={bleConnected ? batteryLevel : deviceStatus?.bracelet?.batteryLevel}
                 />
               </View>
             </View>
@@ -324,8 +324,8 @@ export default function DashboardScreen({ navigation }) {
                     size={22} 
                     color={bleConnected ? batteryColor : colors.success} 
                   />
-                  <Text style={[styles.wristbandInfoValue, { color: bleConnected ? batteryColor : colors.success }]}>
-                    {bleConnected ? (batteryLevel !== null ? `${batteryLevel}%` : '--') : 'Kutuya Bağlı'}
+                  <Text style={[styles.wristbandInfoValue, { color: (bleConnected || deviceStatus?.bracelet?.status === 'online') ? batteryColor : colors.success }]}>
+                    {(bleConnected && batteryLevel !== null) ? `${batteryLevel}%` : (deviceStatus?.bracelet?.batteryLevel !== undefined ? `${deviceStatus?.bracelet?.batteryLevel}%` : '--')}
                   </Text>
                   <Text style={styles.wristbandInfoLabel}>Durum</Text>
                 </View>

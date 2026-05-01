@@ -81,12 +81,13 @@ export function PatientProvider({ children }) {
             if (lastAlarmRef.current !== null) {
                try {
                  const { createAlert } = require('../services/alertService');
+                 const timeStr = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
                  await createAlert({
                    patientId: patientId,
-                   type: 'missed',
-                   title: '⚠️ İlaç Alınmadı!',
-                   message: `İlaç saati geldi ancak ilaç henüz alınmadı. Saat: ${currentAlarmStr}`,
-                   time: currentAlarmStr,
+                   type: 'reminder',
+                   title: '🔔 İlaç Saati Geldi',
+                   message: `İlaç saati geldi. Kutu alarm veriyor. (Saat: ${timeStr})`,
+                   time: timeStr,
                  });
                } catch(e) {
                  console.log("Alarm bildirimi oluşturulamadı", e);
@@ -103,12 +104,13 @@ export function PatientProvider({ children }) {
             if (lastTakenRef.current !== null) {
                try {
                  const { createAlert } = require('../services/alertService');
+                 const timeStr = box.medicineTakenAt ? new Date(box.medicineTakenAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
                  await createAlert({
                    patientId: patientId,
                    type: 'taken',
                    title: '✅ İlaç Alındı',
-                   message: `Hasta ilacını kutudan aldı. Saat: ${currentTakenStr}`,
-                   time: currentTakenStr,
+                   message: `İlaç kutudan alındı. (Saat: ${timeStr})`,
+                   time: timeStr,
                  });
                } catch(e) {
                  console.log("Alındı bildirimi oluşturulamadı", e);
@@ -127,12 +129,13 @@ export function PatientProvider({ children }) {
             if (lastBraceletTakenRef.current !== null) {
               try {
                 const { createAlert } = require('../services/alertService');
+                const timeStr = bracelet.medicineTakenAt ? new Date(bracelet.medicineTakenAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
                 await createAlert({
                   patientId: patientId,
                   type: 'taken',
-                  title: '✅ İlaç Onaylandı (Bileklik)',
-                  message: `Hasta bileklikteki butona basarak ilacı aldığını onayladı.`,
-                  time: bracelet.medicineTakenAt || bracelet.lastTaken,
+                  title: '✅ İlaç Alındı (Bileklik)',
+                  message: `İlaç alındı onayı bileklikten gönderildi. (Saat: ${timeStr})`,
+                  time: timeStr,
                 });
               } catch(e) {
                 console.log("Bileklik onay bildirimi oluşturulamadı", e);

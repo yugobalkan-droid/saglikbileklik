@@ -97,7 +97,7 @@ export const triggerDeviceAlarm = async (patientId) => {
       if (deviceDoc.data().type === 'box') {
         batch.update(docRef, { triggerAlert: true, lastResend: serverTimestamp() });
       } else if (deviceDoc.data().type === 'bracelet') {
-        batch.update(docRef, { alarmActive: true });
+        batch.update(docRef, { triggerAlert: true });
       }
     });
     await batch.commit();
@@ -117,9 +117,9 @@ export const stopDeviceAlarm = async (patientId) => {
     snapshot.docs.forEach((deviceDoc) => {
       const docRef = doc(db, COLLECTION, deviceDoc.id);
       if (deviceDoc.data().type === 'box') {
-        batch.update(docRef, { triggerAlert: false });
+        batch.update(docRef, { stopAlert: true });
       } else if (deviceDoc.data().type === 'bracelet') {
-        batch.update(docRef, { alarmActive: false });
+        batch.update(docRef, { stopAlert: true });
       }
     });
     await batch.commit();
