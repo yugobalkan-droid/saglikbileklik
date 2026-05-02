@@ -109,7 +109,11 @@ export default function SettingsScreen() {
   const [melodyType, setMelodyType] = useState(0); // 0: Standart, 1: Siren, 2: Hızlı, 3: Özel
   const [customFreq, setCustomFreq] = useState('1000');
   const [customSpeed, setCustomSpeed] = useState('500');
+  const [volume, setVolume] = useState(100);
   const [savingSoundSettings, setSavingSoundSettings] = useState(false);
+
+  const decreaseVolume = () => setVolume(v => Math.max(10, v - 10));
+  const increaseVolume = () => setVolume(v => Math.min(100, v + 10));
 
   const handleSignOut = () => {
     Alert.alert(
@@ -355,6 +359,7 @@ export default function SettingsScreen() {
         'settings.melodyType': melodyType,
         'settings.customFreq': parseInt(customFreq) || 1000,
         'settings.customSpeed': parseInt(customSpeed) || 500,
+        'settings.volume': volume,
         testSound: true,
         updatedAt: serverTimestamp()
       });
@@ -372,6 +377,7 @@ export default function SettingsScreen() {
         'settings.melodyType': melodyType,
         'settings.customFreq': parseInt(customFreq) || 1000,
         'settings.customSpeed': parseInt(customSpeed) || 500,
+        'settings.volume': volume,
         updatedAt: serverTimestamp()
       });
       Alert.alert('Başarılı', 'Ses ayarları cihaz hafızasına kaydedildi!');
@@ -1080,7 +1086,25 @@ export default function SettingsScreen() {
             </View>
           )}
 
-          <View style={[styles.flexRow, { gap: spacing.md, marginTop: spacing.lg }]}>
+          <Text style={[styles.inputLabel, { marginTop: spacing.lg }]}>Ses Yüksekliği / Keskinliği</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.surfaceVariant, padding: spacing.md, borderRadius: borderRadius.md }}>
+            <TouchableOpacity onPress={decreaseVolume} style={{ width: 40, height: 40, backgroundColor: colors.surface, borderRadius: 20, justifyContent: 'center', alignItems: 'center' }}>
+              <Ionicons name="remove" size={24} color={colors.primary} />
+            </TouchableOpacity>
+            
+            <Text style={{ ...typography.titleLarge, color: colors.textPrimary }}>
+              %{volume}
+            </Text>
+
+            <TouchableOpacity onPress={increaseVolume} style={{ width: 40, height: 40, backgroundColor: colors.surface, borderRadius: 20, justifyContent: 'center', alignItems: 'center' }}>
+              <Ionicons name="add" size={24} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
+          <Text style={{ ...typography.bodySmall, color: colors.textTertiary, marginTop: spacing.sm }}>
+            Not: Transistörlü hoparlörde ses yüksekliği, bip sesinin "süresini" kısaltarak simüle edilir.
+          </Text>
+
+          <View style={[styles.flexRow, { gap: spacing.md, marginTop: spacing.xl }]}>
             <TouchableOpacity
               style={[styles.saveBtn, { flex: 1, backgroundColor: colors.warning }]}
               onPress={handleTestSound}

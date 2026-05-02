@@ -76,6 +76,7 @@ bool beepState = false;
 int melodyType = 0; // 0: Standart, 1: Siren, 2: Hızlı, 3: Özel
 int customFreq = 1000;
 int customSpeed = 500;
+int volume = 100;
 bool testSoundActive = false;
 unsigned long testSoundStartTime = 0;
 
@@ -298,14 +299,15 @@ void loop() {
         beepState = !beepState;
         
         digitalWrite(LED_PIN, beepState ? HIGH : LOW);
+        int duration = (speedMs * volume) / 100;
         
         if (beepState) {
-          tone(BUZZER_PIN, freq1);
+          tone(BUZZER_PIN, freq1, duration);
           // Gerçek alarm ise ESP-NOW sinyali gönder
           if (alarmActive) sendESPNowSignal();
         } else {
           if (freq2 > 0) {
-            tone(BUZZER_PIN, freq2); // Siren için 2. ton
+            tone(BUZZER_PIN, freq2, duration); // Siren için 2. ton
           } else {
             noTone(BUZZER_PIN); // Sessizlik
           }
@@ -412,6 +414,10 @@ void checkFirebaseAlarm() {
         int s = atoi(settingsMap["customSpeed"]["integerValue"].as<const char*>());
         if (s > 0) customSpeed = s;
       }
+      if (settingsMap.containsKey("volume")) {
+        int v = atoi(settingsMap["volume"]["integerValue"].as<const char*>());
+        if (v > 0) volume = v;
+      }
     }
 
     if (testSound && !testSoundActive) {
@@ -421,6 +427,18 @@ void checkFirebaseAlarm() {
       lastBeepTime = millis();
       beepState = true;
       digitalWrite(LED_PIN, HIGH);
+      
+      int startFreq = 1000;
+      if (melodyType == 1) startFreq = 800;
+      else if (melodyType == 2) startFreq = 2000;
+      else if (melodyType == 3) startFreq = customFreq;
+      
+      int duration = 1000;
+      if (melodyType == 1) duration = 300;
+      else if (melodyType == 2) duration = 150;
+      else if (melodyType == 3) duration = customSpeed;
+      
+      tone(BUZZER_PIN, startFreq, (duration * volume) / 100);
       
       FirebaseJson content;
       content.set("fields/testSound/booleanValue", false);
