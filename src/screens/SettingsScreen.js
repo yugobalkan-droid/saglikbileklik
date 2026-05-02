@@ -352,10 +352,13 @@ export default function SettingsScreen() {
     try {
       const boxRef = doc(db, 'devices', 'esp32_medicine_box_01');
       await updateDoc(boxRef, {
+        'settings.melodyType': melodyType,
+        'settings.customFreq': parseInt(customFreq) || 1000,
+        'settings.customSpeed': parseInt(customSpeed) || 500,
         testSound: true,
         updatedAt: serverTimestamp()
       });
-      Alert.alert('Test Gönderildi', 'Seçili melodi kutuda 3 saniye çalacak.');
+      Alert.alert('Test Başladı', 'Seçtiğiniz melodi ilaç kutunuzda 3 saniye çalacaktır.');
     } catch (error) {
       Alert.alert('Hata', 'Ses testi gönderilemedi: ' + error.message);
     }
@@ -1078,25 +1081,27 @@ export default function SettingsScreen() {
           )}
 
           <View style={[styles.flexRow, { gap: spacing.md, marginTop: spacing.lg }]}>
-            <Pressable
+            <TouchableOpacity
               style={[styles.saveBtn, { flex: 1, backgroundColor: colors.warning }]}
               onPress={handleTestSound}
+              activeOpacity={0.7}
             >
               <Ionicons name="play" size={20} color={colors.textOnPrimary} />
               <Text style={styles.saveBtnText}>Sesi Test Et</Text>
-            </Pressable>
+            </TouchableOpacity>
 
-            <Pressable
+            <TouchableOpacity
               style={[styles.saveBtn, { flex: 1 }, savingSoundSettings && { opacity: 0.7 }]}
               onPress={handleSaveSoundSettings}
               disabled={savingSoundSettings}
+              activeOpacity={0.7}
             >
               {savingSoundSettings ? (
                 <ActivityIndicator color={colors.textOnPrimary} />
               ) : (
                 <Text style={styles.saveBtnText}>Cihaza Kaydet</Text>
               )}
-            </Pressable>
+            </TouchableOpacity>
           </View>
         </View>
       </BottomSheet>
