@@ -104,6 +104,13 @@ export default function SettingsScreen() {
   const [langSheetVisible, setLangSheetVisible] = useState(false);
   const [selectedLang, setSelectedLang] = useState('tr');
 
+  // Ses Ayarları
+  const [soundSettingsSheetVisible, setSoundSettingsSheetVisible] = useState(false);
+  const [melodyType, setMelodyType] = useState(0); // 0: Standart, 1: Siren, 2: Hızlı, 3: Özel
+  const [customFreq, setCustomFreq] = useState('1000');
+  const [customSpeed, setCustomSpeed] = useState('500');
+  const [savingSoundSettings, setSavingSoundSettings] = useState(false);
+
   const handleSignOut = () => {
     Alert.alert(
       'Çıkış Yap',
@@ -341,6 +348,37 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleTestSound = async () => {
+    try {
+      const boxRef = doc(db, 'devices', 'esp32_medicine_box_01');
+      await updateDoc(boxRef, {
+        testSound: true,
+        updatedAt: serverTimestamp()
+      });
+      Alert.alert('Test Gönderildi', 'Seçili melodi kutuda 3 saniye çalacak.');
+    } catch (error) {
+      Alert.alert('Hata', 'Ses testi gönderilemedi: ' + error.message);
+    }
+  };
+
+  const handleSaveSoundSettings = async () => {
+    setSavingSoundSettings(true);
+    try {
+      const boxRef = doc(db, 'devices', 'esp32_medicine_box_01');
+      await updateDoc(boxRef, {
+        'settings.melodyType': melodyType,
+        'settings.customFreq': parseInt(customFreq) || 1000,
+        'settings.customSpeed': parseInt(customSpeed) || 500,
+        updatedAt: serverTimestamp()
+      });
+      Alert.alert('Başarılı', 'Ses ayarları cihaz hafızasına kaydedildi!');
+      setSoundSettingsSheetVisible(false);
+    } catch (error) {
+      Alert.alert('Hata', 'Kaydedilemedi: ' + error.message);
+    }
+    setSavingSoundSettings(false);
+  };
+
   if (loggingOut) {
     return (
       <View style={styles.loadingContainer}>
@@ -435,6 +473,15 @@ export default function SettingsScreen() {
             subtitle="2.4GHz • Aktif"
             iconBg={colors.infoSurface}
             onPress={() => openDeviceDetail('rf')}
+          />
+          <View style={styles.divider} />
+          <SettingsItem
+            icon="musical-notes-outline"
+            title="Kutu Ses Ayarları"
+            subtitle="Melodi, ses yüksekliği ve test"
+            iconBg={colors.primarySurface}
+            iconColor={colors.primary}
+            onPress={() => setSoundSettingsSheetVisible(true)}
           />
           <View style={styles.divider} />
           <SettingsItem
@@ -971,6 +1018,86 @@ export default function SettingsScreen() {
               )}
             </Pressable>
           ))}
+        </View>
+      </BottomSheet>
+
+      {/* Ses Ayarları BottomSheet */}
+      <BottomSheet
+        visible={soundSettingsSheetVisible}
+        onClose={() => setSoundSettingsSheetVisible(false)}
+        title="Ses ve Melodi Ayarları"
+      >
+        <View style={styles.sheetBody}>
+          <Text style={styles.sheetSubtitle}>
+            İlaç kutusunun alarm melodisini ve hızını buradan ayarlayabilirsiniz.
+          </Text>
+
+          <Text style={styles.inputLabel}>Melodi Tipi Seçin</Text>
+          {[
+            { value: 0, label: 'Standart Bip (1 sn aralıklı)' },
+            { value: 1, label: 'Siren (İki tonlu acil durum)' },
+            { value: 2, label: 'Hızlı Bip (Uyarıcı)' },
+            { value: 3, label: 'Özel (Frekans & Hız girin)' },
+          ].map((opt) => (
+            <Pressable
+              key={opt.value}
+              style={[styles.selectOption, melodyType === opt.value && styles.selectOptionActive]}
+              onPress={() => setMelodyType(opt.value)}
+            >
+              <Text style={[styles.selectOptionText, melodyType === opt.value && styles.selectOptionTextActive]}>
+                {opt.label}
+              </Text>
+              {melodyType === opt.value && (
+                <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
+              )}
+            </Pressable>
+          ))}
+
+          {melodyType === 3 && (
+            <View style={{ marginTop: spacing.md, padding: spacing.md, backgroundColor: colors.primarySurface, borderRadius: borderRadius.md }}>
+              <Text style={[styles.inputLabel, { color: colors.primary }]}>Özel Melodi Ayarları</Text>
+              
+              <Text style={styles.inputLabel}>Ses Tonu (Frekans) - Örn: 1000</Text>
+              <TextInput
+                style={[styles.textInput, { backgroundColor: colors.surface }]}
+                value={customFreq}
+                onChangeText={setCustomFreq}
+                keyboardType="numeric"
+                placeholder="500 ile 4000 arası"
+              />
+
+              <Text style={styles.inputLabel}>Hız (ms) - Örn: 500</Text>
+              <TextInput
+                style={[styles.textInput, { backgroundColor: colors.surface }]}
+                value={customSpeed}
+                onChangeText={setCustomSpeed}
+                keyboardType="numeric"
+                placeholder="100 ile 2000 arası"
+              />
+            </View>
+          )}
+
+          <View style={[styles.flexRow, { gap: spacing.md, marginTop: spacing.lg }]}>
+            <Pressable
+              style={[styles.saveBtn, { flex: 1, backgroundColor: colors.warning }]}
+              onPress={handleTestSound}
+            >
+              <Ionicons name="play" size={20} color={colors.textOnPrimary} />
+              <Text style={styles.saveBtnText}>Sesi Test Et</Text>
+            </Pressable>
+
+            <Pressable
+              style={[styles.saveBtn, { flex: 1 }, savingSoundSettings && { opacity: 0.7 }]}
+              onPress={handleSaveSoundSettings}
+              disabled={savingSoundSettings}
+            >
+              {savingSoundSettings ? (
+                <ActivityIndicator color={colors.textOnPrimary} />
+              ) : (
+                <Text style={styles.saveBtnText}>Cihaza Kaydet</Text>
+              )}
+            </Pressable>
+          </View>
         </View>
       </BottomSheet>
     </View>

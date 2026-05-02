@@ -5,7 +5,7 @@
  *
  *  Özellikler:
  *    ✅ 2x Titreşim motoru ile alarm bildirimi
- *    ✅ NRF24L01 ile ilaç kutusu haberleşmesi (RX + TX)
+ *    ✅ ESP-NOW ile ilaç kutusu haberleşmesi (RX + TX)
  *    ✅ BLE 5.0 ile mobil uygulama bağlantısı
  *    ✅ 550mAh Li-Ion pil (13400Q3) + TP4056 şarj yönetimi
  *    ✅ ADC ile pil seviyesi ölçümü
@@ -19,28 +19,26 @@
  *    Pil ADC             → GPIO 1 (voltaj bölücü: 100k/100k)
  *    TP4056 CHRG          → GPIO 7 (INPUT_PULLUP)
  *    TP4056 STDBY         → GPIO 8 (INPUT_PULLUP)
- *    NRF24L01 SPI        → MOSI:11 MISO:13 SCK:12 CE:10 CSN:9
+ *    ESP-NOW              → Dahili (ESP32-S3 WiFi radyo)
  *    BLE                 → Dahili (ESP32-S3)
  *
  *  Yapı:
  *    config.h        → Pin ve sabit tanımları
  *    power_manager.h → Pil & şarj yönetimi
- *    nrf_comm.h      → NRF24L01 haberleşme
+ *    espnow_comm.h   → ESP-NOW haberleşme
  *    ble_service.h   → BLE server (app bağlantısı)
  * =========================================================
  */
 
 #include "ble_service.h"
 #include "config.h"
-#include "nrf_comm.h"
+#include "espnow_comm.h"
 #include "power_manager.h"
-#include "firebase_sync.h"
 
 /* ─── Modül Örnekleri ────────────────────────────────────── */
 PowerManager power;
-NRFComm nrf;
+ESPNowComm espnow;
 CareSyncBLE ble;
-FirebaseSync firebase;
 
 /* ─── Durum Değişkenleri ─────────────────────────────────── */
 bool alarmActive = false;
@@ -51,29 +49,19 @@ bool vibrateState = false;
 /* ─── Zamanlama ──────────────────────────────────────────── */
 unsigned long lastBatteryCheck = 0;
 unsigned long lastBLENotify = 0;
-unsigned long lastNRFCheck = 0;
 unsigned long lastVibrateToggle = 0;
 unsigned long lastActivityTime = 0; // Son aktivite zamanı (deep sleep için)
 unsigned long alarmStartTime = 0;   // Alarm başlangıç zamanı
-unsigned long lastFirebaseSync = 0; // Son Firebase senkronizasyonu
+unsigned long lastAlarmStopped = 0; // Alarmın tekrar tetiklenmesini önlemek için cooldown
 
 /* ─── Fonksiyon Bildirimleri ─────────────────────────────── */
 void triggerAlarm(uint8_t type);
 void stopAlarm();
+void onMedicineAlertReceived(const char *msg);
+void onStopAlertReceived(const char *msg);
 
-void onFirebaseAlarmTrigger() {
-  if (!alarmActive) {
-    DEBUG_PRINTLN("[FIREBASE] Buluttan alarm tetiklendi!");
-    triggerAlarm(ALARM_TYPE_APP_TRIGGER);
-  }
-}
-
-void onFirebaseAlarmStop() {
-  if (alarmActive) {
-    DEBUG_PRINTLN("[FIREBASE] Buluttan alarm durdurma komutu geldi!");
-    stopAlarm();
-  }
-}
+// Firebase kaldırıldı – ilaç kutusu gateway olarak çalışıyor.
+// Alarm tetikleme: ESP-NOW (ilaç kutusu) veya BLE (mobil uygulama) üzerinden.
 
 /* ─── Alarm Deseni ───────────────────────────────────────── */
 // Titreşim deseni: [on_ms, off_ms, on_ms, off_ms, ...]
@@ -119,21 +107,25 @@ void setup() {
     DEBUG_PRINTLN("[✓] USB güç modu – pil kontrolü atlandı.");
   }
 
-  // 3. NRF24L01
-  if (nrf.begin()) {
-    // Mesaj callback'i ayarla
-    nrf.onMedicineAlert(onMedicineAlertReceived);
+  // 3. ESP-NOW Haberleşme (NRF24 yerine dahili radyo)
+  {
+    DEBUG_PRINTLN("[ESP-NOW] Başlatılıyor...");
+    if (espnow.begin()) {
+      espnow.onMedicineAlert(onMedicineAlertReceived);
+      espnow.onStopAlert(onStopAlertReceived);
+      DEBUG_PRINTLN("[ESP-NOW] ✅ Hazır, ilaç kutusu sinyalleri dinleniyor.");
+    } else {
+      DEBUG_PRINTLN("[ESP-NOW] ❌ Başlatılamadı!");
+    }
   }
 
-  // 4. BLE Servisi (NRF24'ten sonra biraz bekle – bellek çakışmasını önle)
+  // 4. BLE Servisi (ESP-NOW'dan sonra biçimlendir)
   delay(100);
   ble.begin();
   ble.onAlarmCommand(onBLEAlarmCommand);
 
-  // 5. Firebase
-  firebase.begin();
-  firebase.onAlarmTrigger(onFirebaseAlarmTrigger);
-  firebase.onAlarmStop(onFirebaseAlarmStop);
+  // 5. Firebase kaldırıldı – bileklik sadece ESP-NOW + BLE kullanır
+  //    İlaç kutusu Firebase gateway olarak çalışır.
 
   // İlk durum güncellemesi
   ble.updateBatteryLevel(power.batteryPercent);
@@ -151,7 +143,7 @@ void setup() {
                power.chargeState == 1   ? "Oluyor"
                : power.chargeState == 2 ? "Tam"
                                         : "Hayır");
-  DEBUG_PRINTF("NRF24: %s | BLE: %s\n", nrf.isReady ? "✅" : "❌",
+  DEBUG_PRINTF("ESP-NOW: %s | BLE: %s\n", espnow.isReady ? "✅" : "❌",
                "✅ Yayında");
   DEBUG_PRINTF("Deep Sleep: %s\n", 
                (power.isUsbPowered && DISABLE_DEEP_SLEEP_ON_USB) ? "❌ Devre Dışı" : "✅ Aktif");
@@ -177,12 +169,9 @@ void loop() {
   handleButton(now);
 
   // ══════════════════════════════════════════════════════
-  // 3. NRF24L01 MESAJ KONTROLÜ
+  // 3. ESP-NOW: Callback-driven, polling gerekmez!
+  // ESP-NOW mesajları otomatik olarak callback ile alınır.
   // ══════════════════════════════════════════════════════
-  if (nrf.isReady && (now - lastNRFCheck >= NRF_CHECK_INTERVAL)) {
-    lastNRFCheck = now;
-    nrf.checkForMessages();
-  }
 
   // ══════════════════════════════════════════════════════
   // 4. PİL KONTROLÜ (periyodik)
@@ -198,7 +187,7 @@ void loop() {
       ble.updateBatteryLevel(0);
       delay(500);
       ble.stop();
-      nrf.powerDown();
+      espnow.powerDown();
       power.enterDeepSleep();
       return;
     }
@@ -208,9 +197,10 @@ void loop() {
       lowBatteryBuzz();
     }
 
-    DEBUG_PRINTF("[DURUM] Pil: %d%% (%.2fV) | Şarj: %d | BLE: %s\n",
+    DEBUG_PRINTF("[DURUM] Pil: %d%% (%.2fV) | Şarj: %d | BLE: %s | ESP-NOW: %s\n",
                  power.batteryPercent, power.batteryVoltage, power.chargeState,
-                 ble.isConnected ? "Bağlı" : "Yayında");
+                 ble.isConnected ? "Bağlı" : "Yayında",
+                 espnow.isReady ? "✅ Dinliyor" : "❌ KAPALI");
   }
 
   // ══════════════════════════════════════════════════════
@@ -223,16 +213,10 @@ void loop() {
   }
 
   // ══════════════════════════════════════════════════
-  // 6. FIREBASE SENK (periyodik – her 60 sn)
-  //    BLE durdur → WiFi aç → sync → WiFi kapat → BLE aç
+  // 6. FIREBASE KALDIRILDI
+  //    Bileklik artık WiFi/Firebase kullanmıyor.
+  //    İlaç kutusu tüm bulut iletişimini yönetiyor.
   // ══════════════════════════════════════════════════
-  if (now - lastFirebaseSync >= FIREBASE_SYNC_INTERVAL) {
-    lastFirebaseSync = now;
-    DEBUG_PRINTLN("[SİSTEM] Firebase senkronizasyonu başlatılıyor...");
-    
-    // Firebase'e bağlan, durumu senkronize et ve WiFi'yi kapat
-    firebase.syncAndDisconnect(power.batteryPercent, power.batteryVoltage, power.chargeState, alarmActive, false);
-  }
 
   // ══════════════════════════════════════════════════
   // 7. GÜÇ TASARRUFU (Deep Sleep iptal edildi)
@@ -249,11 +233,22 @@ void loop() {
    ALARM FONKSİYONLARI
    ───────────────────────────────────────────────────────── */
 
-// İlaç kutusundan NRF24 mesajı geldiğinde çağrılır
+// İlaç kutusundan ESP-NOW mesajı geldiğinde çağrılır
 void onMedicineAlertReceived(const char *msg) {
-  DEBUG_PRINTLN("[ALARM] 💊 İlaç kutusu sinyali alındı!");
-  if (!alarmActive) {
+  DEBUG_PRINTLN("[ALARM] 💊 İlaç kutusu sinyali alındı! (ESP-NOW)");
+  // Alarm aktif değilse ve son durdurulmanın üzerinden 1 saniye geçtiyse (cooldown)
+  if (!alarmActive && (lastAlarmStopped == 0 || millis() - lastAlarmStopped > 1000)) {
     triggerAlarm(ALARM_TYPE_MEDICINE);
+  } else if (!alarmActive) {
+    DEBUG_PRINTLN("[ALARM] ⏳ Butona yeni basıldı, gelen sinyal yoksayıldı (Cooldown).");
+  }
+}
+
+// İlaç kutusundan DUR mesajı geldiğinde çağrılır
+void onStopAlertReceived(const char *msg) {
+  DEBUG_PRINTLN("[ALARM] 🛑 İlaç kutusundan DUR sinyali alındı!");
+  if (alarmActive) {
+    stopAlarm();
   }
 }
 
@@ -302,6 +297,9 @@ void stopAlarm() {
 
   // BLE'ye bildir
   ble.updateAlarmState(false);
+  
+  // Cooldown başlat
+  lastAlarmStopped = millis();
 
   DEBUG_PRINTLN("[ALARM] ✅ Alarm durduruldu.");
 }
@@ -378,8 +376,8 @@ void handleButton(unsigned long now) {
         // 1. Alarmı durdur
         stopAlarm();
 
-        // 2. NRF24 üzerinden ilaç kutusuna onay gönder
-        nrf.sendMedicineConfirm();
+        // 2. ESP-NOW üzerinden ilaç kutusuna onay gönder
+        espnow.sendMedicineConfirm();
 
         // 3. BLE üzerinden app'e bildir
         ble.notifyMedicineTaken();
@@ -387,12 +385,7 @@ void handleButton(unsigned long now) {
         // 4. Onay titreşimi (2 kısa bip)
         confirmFeedback();
 
-        // 5. Firebase'e doğrudan bildir
-        DEBUG_PRINTLN("[FIREBASE] İlaç alındı onayı buluta gönderiliyor...");
-        if (firebase.confirmMedicineTaken()) {
-          DEBUG_PRINTLN("[FIREBASE] İlaç alındı onayı başarıyla gönderildi.");
-        }
-        firebase.disconnectWiFi();
+        // 5. Firebase bildirim kaldırıldı – ilaç kutusu NRF24 onayı ile Firebase'i günceller
 
       } else {
         // ── Alarm yokken: Durum göster (kısa LED blink) ──

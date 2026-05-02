@@ -40,6 +40,10 @@ public:
   bool begin() {
     DEBUG_PRINTLN("[NRF] NRF24L01 başlatılıyor...");
 
+    // Önceki örnekleri temizle (yeniden deneme durumunda bellek sızıntısını önle)
+    if (_radio) { delete _radio; _radio = nullptr; }
+    if (_spi) { _spi->end(); delete _spi; _spi = nullptr; }
+
     // SPI başlat (ESP32-S3 özel pin ataması)
     _spi = new SPIClass(VSPI);
     _spi->begin(NRF_SCK, NRF_MISO, NRF_MOSI, NRF_CSN);
@@ -50,9 +54,22 @@ public:
 
     if (!_radio->begin(_spi)) {
       DEBUG_PRINTLN("[NRF] ❌ NRF24L01 başlatılamadı! Kablo bağlantılarını kontrol edin.");
+      DEBUG_PRINTLN("[NRF]    MOSI:11  MISO:13  SCK:12  CE:10  CSN:9");
       isReady = false;
       return false;
     }
+
+    // SPI doğrulama: Kanal numarasını yaz ve geri oku
+    _radio->setChannel(76);
+    delay(5);
+    uint8_t readChannel = _radio->getChannel();
+    if (readChannel != 76) {
+      DEBUG_PRINTF("[NRF] ❌ SPI doğrulama başarısız! Yazılan: 76, Okunan: %d\n", readChannel);
+      DEBUG_PRINTLN("[NRF]    Kablo bağlantılarını kontrol edin (özellikle MISO:13)");
+      isReady = false;
+      return false;
+    }
+    DEBUG_PRINTLN("[NRF] ✅ SPI iletişimi doğrulandı.");
 
     // Kanal ve güç ayarları
     _radio->setPALevel(RF24_PA_HIGH);      // Yüksek güç (uzun menzil)
@@ -63,7 +80,7 @@ public:
 
     // Pipe'ları aç
     const byte addr[6] = NRF_PIPE_ADDRESS;
-    _radio->openReadingPipe(0, addr);      // Okuma pipe'ı (RX)
+    _radio->openReadingPipe(1, addr);      // Okuma pipe 1 (pipe 0 yazma için ayrılır)
     _radio->openWritingPipe(addr);         // Yazma pipe'ı (TX)
 
     // Varsayılan: Alıcı (RX) modda başla
@@ -72,6 +89,7 @@ public:
     isReady = true;
     DEBUG_PRINTLN("[NRF] ✅ NRF24L01 hazır (RX modda).");
     DEBUG_PRINTF("[NRF] Kanal: %d | PA: HIGH | Hız: 250KBPS\n", _radio->getChannel());
+    DEBUG_PRINTF("[NRF] Adres: %s | Pipe: 1 (RX) + 0 (TX)\n", NRF_PIPE_ADDRESS);
 
     return true;
   }

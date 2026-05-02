@@ -54,7 +54,7 @@ public:
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
     int retries = 0;
-    while (WiFi.status() != WL_CONNECTED && retries < 20) {
+    while (WiFi.status() != WL_CONNECTED && retries < 6) {
       DEBUG_PRINT(".");
       delay(500);
       retries++;
@@ -95,7 +95,7 @@ public:
         // Token hazır olmasını bekle (max 15 sn)
         DEBUG_PRINT("[FIREBASE] Token bekleniyor");
         int tokenRetry = 0;
-        while (!Firebase.ready() && tokenRetry < 15) {
+        while (!Firebase.ready() && tokenRetry < 5) {
           DEBUG_PRINT(".");
           delay(1000);
           tokenRetry++;

@@ -7,7 +7,7 @@
  *    - 550mAh 3.7V Li-Ion Pil (13400Q3)
  *    - TP4056 Şarj Modülü (USB-C)
  *    - 1x Titreşim Motoru
- *    - NRF24L01 RF Modülü (İlaç kutusu ile haberleşme)
+ *    - ESP-NOW (ESP32 dahili radyo ile ilaç kutusu haberleşmesi)
  *    - 1x Push Button (ilaç onay)
  *    - 1x Durum LED'i
  * =========================================================
@@ -21,15 +21,11 @@
 #define FIRMWARE_VERSION      "2.2.0"
 #define DEVICE_ID             "esp32_wristband_01"
 
-/* ─── WiFi Ayarları ───────────────────────────────────── */
-#define WIFI_SSID             "Harun59"
-#define WIFI_PASSWORD         "Harun5959"
-
-/* ─── Firebase Ayarları ────────────────────────────────── */
-#define FIREBASE_API_KEY      "AIzaSyDHII3X9MFkX5_HF6W5NtyosNyHFef9uDs"
-#define FIREBASE_PROJECT_ID   "saglikbileklik-356ed"
-#define FIREBASE_USER_EMAIL   "test@test.com"
-#define FIREBASE_USER_PASSWORD "test123"
+/* ─── ESP-NOW Ayarları ────────────────────────────────── */
+// WiFi kanalı (ilaç kutusu ile aynı olmalı!)
+// İlaç kutusu WiFi'a bağlandığında otomatik kanal alır,
+// bilekliği aynı kanala ayarla. Varsayılan: 1
+#define ESPNOW_CHANNEL        4
 
 /* ─── Titreşim Motoru ────────────────────────────────────── */
 // 1 adet düğme titreşim motoru (2N2222A transistör üzerinden)
@@ -68,15 +64,10 @@
 #define CHARGE_STATE_CHARGING   1   // Şarj oluyor
 #define CHARGE_STATE_COMPLETE   2   // Şarj tamamlandı
 
-/* ─── NRF24L01 SPI Pinleri ──────────────────────────────── */
-#define NRF_MOSI              11
-#define NRF_MISO              13
-#define NRF_SCK               12
-#define NRF_CE                10
-#define NRF_CSN               9
-
-// NRF24L01 haberleşme adresi (ilaç kutusu ile aynı olmalı!)
-#define NRF_PIPE_ADDRESS      "ILACK"
+/* ─── ESP-NOW (NRF24 kaldırıldı) ────────────────────────── */
+// Bileklikte NRF24L01 modülü yok.
+// Haberleşme ESP32 dahili radyo (ESP-NOW) ile yapılır.
+// Eski NRF24 SPI pinleri (11,13,12,10,9) artık boşta.
 
 /* ─── BLE Ayarları ───────────────────────────────────────── */
 // BLE Servis UUID'leri
@@ -94,19 +85,18 @@
 /* ─── Zamanlama Sabitleri ────────────────────────────────── */
 #define BATTERY_CHECK_INTERVAL    30000   // 30 saniyede bir pil kontrolü
 #define BLE_NOTIFY_INTERVAL       5000    // 5 saniyede bir BLE güncelleme
-#define NRF_CHECK_INTERVAL        100     // 100ms'de bir NRF24 kontrol
+
 #define ALARM_VIBRATE_ON_MS       400     // Titreşim süresi (ms)
 #define ALARM_VIBRATE_OFF_MS      300     // Titreşim arası bekleme (ms)
 #define ALARM_PATTERN_COUNT       5       // Bir alarm döngüsündeki titreşim sayısı
 #define ALARM_REPEAT_DELAY_MS     2000    // Alarm döngüleri arası bekleme (ms)
 #define DEBOUNCE_MS               50      // Buton debounce süresi
-#define FIREBASE_SYNC_INTERVAL    15000   // 15 saniyede bir Firebase senkronizasyonu
 
 /* ─── Deep Sleep Ayarları ────────────────────────────────── */
 // 550mAh (13400Q3) ile daha rahat güç yönetimi
 #define DEEP_SLEEP_IDLE_TIMEOUT   600000  // 10 dakika işlem yoksa deep sleep
 #define DEEP_SLEEP_WAKEUP_PIN     BUTTON_PIN  // Buton ile uyan
-#define LIGHT_SLEEP_NRF_INTERVAL  2000    // Light sleep'te 2 sn'de bir NRF kontrol
+#define LIGHT_SLEEP_INTERVAL      2000    // Light sleep'te 2 sn'de bir kontrol
 #define DISABLE_DEEP_SLEEP_ON_USB true    // USB güçte deep sleep'i devre dışı bırak
 
 /* ─── Alarm Tipleri ──────────────────────────────────────── */
