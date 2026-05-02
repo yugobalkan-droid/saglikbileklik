@@ -1086,44 +1086,66 @@ export default function SettingsScreen() {
             </View>
           )}
 
-          <Text style={[styles.inputLabel, { marginTop: spacing.lg }]}>Ses Yüksekliği / Keskinliği</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.surfaceVariant, padding: spacing.md, borderRadius: borderRadius.md }}>
-            <TouchableOpacity onPress={decreaseVolume} style={{ width: 40, height: 40, backgroundColor: colors.surface, borderRadius: 20, justifyContent: 'center', alignItems: 'center' }}>
-              <Ionicons name="remove" size={24} color={colors.primary} />
-            </TouchableOpacity>
-            
-            <Text style={{ ...typography.titleLarge, color: colors.textPrimary }}>
-              %{volume}
-            </Text>
+          <Text style={[styles.inputLabel, { marginTop: spacing.lg }]}>Ses Yüksekliği</Text>
+          <View style={{ backgroundColor: colors.surfaceVariant, padding: spacing.lg, borderRadius: borderRadius.lg }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xl }}>
+              <TouchableOpacity 
+                onPress={decreaseVolume} 
+                activeOpacity={0.5}
+                style={{ width: 48, height: 48, backgroundColor: volume <= 10 ? colors.border : colors.primary, borderRadius: 24, justifyContent: 'center', alignItems: 'center', ...shadows.sm }}
+              >
+                <Ionicons name="volume-low" size={22} color={colors.textOnPrimary} />
+              </TouchableOpacity>
+              
+              <View style={{ alignItems: 'center', minWidth: 80 }}>
+                <Ionicons 
+                  name={volume >= 70 ? "volume-high" : volume >= 30 ? "volume-medium" : "volume-low"} 
+                  size={32} 
+                  color={colors.primary} 
+                />
+                <Text style={{ ...typography.headlineLarge, color: colors.textPrimary, marginTop: 4 }}>
+                  %{volume}
+                </Text>
+              </View>
 
-            <TouchableOpacity onPress={increaseVolume} style={{ width: 40, height: 40, backgroundColor: colors.surface, borderRadius: 20, justifyContent: 'center', alignItems: 'center' }}>
-              <Ionicons name="add" size={24} color={colors.primary} />
-            </TouchableOpacity>
+              <TouchableOpacity 
+                onPress={increaseVolume} 
+                activeOpacity={0.5}
+                style={{ width: 48, height: 48, backgroundColor: volume >= 100 ? colors.border : colors.primary, borderRadius: 24, justifyContent: 'center', alignItems: 'center', ...shadows.sm }}
+              >
+                <Ionicons name="volume-high" size={22} color={colors.textOnPrimary} />
+              </TouchableOpacity>
+            </View>
+            
+            {/* Seviye çubuğu */}
+            <View style={{ height: 6, backgroundColor: colors.border, borderRadius: 3, marginTop: spacing.lg }}>
+              <View style={{ height: 6, backgroundColor: volume >= 70 ? colors.success : volume >= 30 ? colors.warning : colors.accent, borderRadius: 3, width: `${volume}%` }} />
+            </View>
           </View>
-          <Text style={{ ...typography.bodySmall, color: colors.textTertiary, marginTop: spacing.sm }}>
-            Not: Transistörlü hoparlörde ses yüksekliği, bip sesinin "süresini" kısaltarak simüle edilir.
-          </Text>
 
           <View style={[styles.flexRow, { gap: spacing.md, marginTop: spacing.xl }]}>
             <TouchableOpacity
-              style={[styles.saveBtn, { flex: 1, backgroundColor: colors.warning }]}
+              style={[styles.saveBtn, { flex: 1, backgroundColor: colors.warning, ...shadows.md }]}
               onPress={handleTestSound}
-              activeOpacity={0.7}
+              activeOpacity={0.6}
             >
-              <Ionicons name="play" size={20} color={colors.textOnPrimary} />
+              <Ionicons name="play-circle" size={22} color={colors.textOnPrimary} />
               <Text style={styles.saveBtnText}>Sesi Test Et</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.saveBtn, { flex: 1 }, savingSoundSettings && { opacity: 0.7 }]}
+              style={[styles.saveBtn, { flex: 1, ...shadows.md }, savingSoundSettings && { opacity: 0.6 }]}
               onPress={handleSaveSoundSettings}
               disabled={savingSoundSettings}
-              activeOpacity={0.7}
+              activeOpacity={0.6}
             >
               {savingSoundSettings ? (
                 <ActivityIndicator color={colors.textOnPrimary} />
               ) : (
-                <Text style={styles.saveBtnText}>Cihaza Kaydet</Text>
+                <>
+                  <Ionicons name="save" size={20} color={colors.textOnPrimary} />
+                  <Text style={styles.saveBtnText}>Cihaza Kaydet</Text>
+                </>
               )}
             </TouchableOpacity>
           </View>

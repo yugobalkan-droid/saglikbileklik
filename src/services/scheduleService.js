@@ -49,6 +49,8 @@ export const syncDeviceSchedule = async (patientId) => {
     const snapshot = await getDocs(slotsRef);
     
     // 2. Gün bazlı (0=Pzt ... 6=Paz) array oluştur
+    // Her eleman {t: "08:00", p: 0} formatında (t=time, p=period/öğün)
+    // p: 0=Sabah, 1=Öğle, 2=Akşam → LED hesaplaması: LED = (period * 7) + day
     const scheduleData = {
       "0": [], "1": [], "2": [], "3": [], "4": [], "5": [], "6": []
     };
@@ -56,8 +58,12 @@ export const syncDeviceSchedule = async (patientId) => {
     snapshot.docs.forEach((doc) => {
       const data = doc.data();
       if (data.enabled && data.time && data.day !== undefined) {
-        if (!scheduleData[data.day].includes(data.time)) {
-          scheduleData[data.day].push(data.time);
+        // Aynı gün+saat+öğün kombinasyonu tekrar eklenmesini engelle
+        const exists = scheduleData[data.day].some(
+          (item) => item.t === data.time && item.p === data.period
+        );
+        if (!exists) {
+          scheduleData[data.day].push({ t: data.time, p: data.period ?? 0 });
         }
       }
     });

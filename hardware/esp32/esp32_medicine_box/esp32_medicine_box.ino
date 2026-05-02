@@ -4,25 +4,22 @@
  *  Kart: ESP32-S3 2022 v1.3
  *
  *  Donanım Bağlantıları:
- *    LED      → GPIO 4
- *    Buzzer   → GPIO 46
- *    Button   → GPIO 36
- *
- *  NRF24L01 KALDIRILDI → ESP-NOW kullanılıyor:
- *    ESP-NOW             → Dahili (ESP32-S3 WiFi radyo)
- *    VCC                 → (gerekmiyor)
- *    GND                 → (gerekmiyor)
+ *    NeoPixel LED → GPIO 4  (21 adet WS2812B - 7 gün x 3 öğün)
+ *    Hoparlör     → GPIO 46  (2N2222A transistör ile)
+ *    Button      → GPIO 36
+ *    ESP-NOW     → Dahili (ESP32-S3 WiFi radyo)
  * =========================================================
  */
 
-#include <ArduinoJson.h> // JSON parse işlemleri için gerekli
+#include <ArduinoJson.h>
 #include <Firebase_ESP_Client.h>
 #include <WiFi.h>
 #include <esp_now.h>
 #include <esp_wifi.h>
 #include <addons/RTDBHelper.h>
 #include <addons/TokenHelper.h>
-#include <time.h> // NTP Saat işlemleri için
+#include <time.h>
+#include <Adafruit_NeoPixel.h>
 
 /* ─── ESP32-S3 Uyumluluğu ──────────────────────────────── */
 // NRF24 kaldırıldı – ESP-NOW kullanılıyor
@@ -37,17 +34,24 @@
 #define USER_EMAIL "test@test.com"
 #define USER_PASSWORD "test123"
 
-/* ─── Pin Tanımlamaları ──────────────────────────────────── */
-#define LED_PIN 4     // Uyarı LED'i
-#define BUZZER_PIN 46 // Buzzer
-#define BUTTON_PIN 36 // Buton (ilaç alındı onayı)
+/* ─── Pin Tanımlamaları ────────────────────────────── */
+#define NEOPIXEL_PIN 4     // 21 Adreslenebilir LED (WS2812B)
+#define BUZZER_PIN 46      // Hoparlör (Transistör ile)
+#define BUTTON_PIN 36      // Buton (ilaç alındı onayı)
 
-// Eski NRF24 pinleri artık kullanılmıyor (boş)
-// #define NRF_MOSI 5
-// #define NRF_MISO 6
-// #define NRF_SCK 7
-// #define NRF_CE 15
-// #define NRF_CSN 16
+/* ─── NeoPixel LED Ayarları ───────────────────── */
+#define NUM_LEDS 21
+#define LED_BRIGHTNESS 50  // 0-255 arası (%20 parlaklık = güç tasarrufu)
+Adafruit_NeoPixel strip(NUM_LEDS, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
+
+// LED Renkleri (Öğün Bazlı)
+// Sabah (LED 0-6):  Yeşil tonları
+// Öğle (LED 7-13):  Mavi tonları
+// Akşam (LED 14-20): Mor tonları
+uint32_t periodColors[3];
+
+// Aktif alarm LED indeksi (-1 = alarm yok)
+int alarmLedIndex = -1;
 
 /* ─── ESP-NOW Mesaj Yapısı ────────────────────────────── */
 // Bileklik ile aynı yapı (her iki tarafta eş olmalı!)
@@ -135,12 +139,20 @@ void setup() {
   delay(200);
 
   // Pin modları
-  pinMode(LED_PIN, OUTPUT);
+  strip.begin();
+  strip.setBrightness(LED_BRIGHTNESS);
+  strip.clear();
+  strip.show();
+  
+  // Öğün renklerini ayarla
+  periodColors[0] = strip.Color(0, 255, 50);   // Sabah = Yeşil
+  periodColors[1] = strip.Color(0, 100, 255);   // Öğle = Mavi
+  periodColors[2] = strip.Color(180, 0, 255);   // Akşam = Mor
+  
   pinMode(BUZZER_PIN, OUTPUT);
   pinMode(BUTTON_PIN, INPUT_PULLUP); // Harici Buton
   pinMode(0, INPUT_PULLUP);          // Dahili BOOT Butonu
 
-  digitalWrite(LED_PIN, LOW);
   digitalWrite(BUZZER_PIN, LOW);
 
   Serial.println("\n=== CareSync ESP32 Başlıyor ===");
@@ -261,7 +273,8 @@ void loop() {
     if (testSoundActive && (currentMillis - testSoundStartTime >= 3000)) {
       testSoundActive = false;
       noTone(BUZZER_PIN);
-      digitalWrite(LED_PIN, LOW);
+      strip.clear();
+      strip.show();
       Serial.println("[TEST] Ses testi bitti.");
     } 
     // Gerçek alarm ise 10 dakika (600,000 ms) zaman aşımı kontrolü
@@ -276,40 +289,43 @@ void loop() {
       int freq1 = 1000;
       int freq2 = 0;
       
-      if (melodyType == 0) { // Standart Bip
-        speedMs = 1000;
-        freq1 = 1000;
-        freq2 = 0;
-      } else if (melodyType == 1) { // Siren
-        speedMs = 300;
-        freq1 = 800;
-        freq2 = 1200;
-      } else if (melodyType == 2) { // Hızlı Bip
-        speedMs = 150;
-        freq1 = 2000;
-        freq2 = 0;
-      } else if (melodyType == 3) { // Özel
-        speedMs = customSpeed;
-        freq1 = customFreq;
-        freq2 = 0;
-      }
+      if (melodyType == 0) { speedMs = 1000; freq1 = 1000; freq2 = 0; }
+      else if (melodyType == 1) { speedMs = 300; freq1 = 800; freq2 = 1200; }
+      else if (melodyType == 2) { speedMs = 150; freq1 = 2000; freq2 = 0; }
+      else if (melodyType == 3) { speedMs = customSpeed; freq1 = customFreq; freq2 = 0; }
 
       if (currentMillis - lastBeepTime >= speedMs) {
         lastBeepTime = currentMillis;
         beepState = !beepState;
         
-        digitalWrite(LED_PIN, beepState ? HIGH : LOW);
+        // NeoPixel LED Animasyonu
+        if (alarmActive && alarmLedIndex >= 0 && alarmLedIndex < NUM_LEDS) {
+          // Alarm LED'i kırmızı-beyaz yanıp söner
+          if (beepState) {
+            strip.setPixelColor(alarmLedIndex, strip.Color(255, 0, 0)); // Kırmızı
+          } else {
+            strip.setPixelColor(alarmLedIndex, strip.Color(255, 255, 255)); // Beyaz
+          }
+          strip.show();
+        } else if (testSoundActive) {
+          // Test modunda gökkuşağı efekti
+          for (int i = 0; i < NUM_LEDS; i++) {
+            int hue = (i * 65536 / NUM_LEDS + currentMillis * 10) % 65536;
+            strip.setPixelColor(i, strip.gamma32(strip.ColorHSV(hue)));
+          }
+          strip.show();
+        }
+        
         int duration = (speedMs * volume) / 100;
         
         if (beepState) {
           tone(BUZZER_PIN, freq1, duration);
-          // Gerçek alarm ise ESP-NOW sinyali gönder
           if (alarmActive) sendESPNowSignal();
         } else {
           if (freq2 > 0) {
-            tone(BUZZER_PIN, freq2, duration); // Siren için 2. ton
+            tone(BUZZER_PIN, freq2, duration);
           } else {
-            noTone(BUZZER_PIN); // Sessizlik
+            noTone(BUZZER_PIN);
           }
         }
       }
@@ -426,7 +442,6 @@ void checkFirebaseAlarm() {
       testSoundStartTime = millis();
       lastBeepTime = millis();
       beepState = true;
-      digitalWrite(LED_PIN, HIGH);
       
       int startFreq = 1000;
       if (melodyType == 1) startFreq = 800;
@@ -476,7 +491,7 @@ void checkFirebaseAlarm() {
       Serial.println("[DEBUG] ---------------------------------------");
 
       // Haftalık programı parse et
-      DynamicJsonDocument schedDoc(2048);
+      DynamicJsonDocument schedDoc(4096);
       DeserializationError schedError =
           deserializeJson(schedDoc, scheduleJSONStr);
 
@@ -485,37 +500,56 @@ void checkFirebaseAlarm() {
         // Bugünün saatlerini kontrol et
         JsonArray todayAlarms = root[currentDay.c_str()];
         bool shouldAlarm = false;
+        int matchedPeriod = -1;
 
         Serial.println("[DEBUG] İncelenen Gün: " + currentDay +
                        " | Mevcut Saat: " + currentTime);
         Serial.print("[DEBUG] Bu Gün İçin Ayarlı Saatler: ");
 
         if (todayAlarms.isNull() || todayAlarms.size() == 0) {
-          Serial.println("(Hiç alarm yok - veya JSON'da gün key'i bulunamadı)");
+          Serial.println("(Hiç alarm yok)");
         } else {
           for (JsonVariant value : todayAlarms) {
-            String alarmTime = value.as<String>();
-            alarmTime.trim(); // Boşlukları temizle
-            Serial.print(alarmTime + " ");
+            // Yeni format: {"t":"08:00","p":0}
+            // Eski format uyumluluğu: salt string "08:00"
+            String alarmTime;
+            int period = 0;
+            
+            if (value.is<JsonObject>()) {
+              alarmTime = value["t"].as<String>();
+              period = value["p"] | 0;
+            } else {
+              alarmTime = value.as<String>();
+            }
+            alarmTime.trim();
+            Serial.print(alarmTime + "(p" + String(period) + ") ");
+            
             if (alarmTime == currentTime) {
               shouldAlarm = true;
+              matchedPeriod = period;
             }
           }
           Serial.println("");
         }
 
         if (shouldAlarm) {
-          // Eğer saat eşleşirse ve bu dakika içinde daha önce çalmadıysa
           if (lastTriggeredAlarmTime != currentTime && !alarmActive) {
             Serial.println("[ALARM] Programlanan saat geldi: " + currentTime);
             lastTriggeredAlarmTime = currentTime;
+            
+            // LED indeksini hesapla: (period * 7) + day
+            int dayInt = currentDay.toInt();
+            if (matchedPeriod >= 0 && matchedPeriod <= 2 && dayInt >= 0 && dayInt <= 6) {
+              alarmLedIndex = (matchedPeriod * 7) + dayInt;
+            } else {
+              alarmLedIndex = dayInt; // Fallback: sadece gün
+            }
+            Serial.printf("[LED] Alarm LED indeksi: %d (Gün:%d, Öğün:%d)\n", alarmLedIndex, dayInt, matchedPeriod);
             triggerAlarm();
           } else if (lastTriggeredAlarmTime == currentTime) {
             Serial.println("[DEBUG] Alarm bu dakika içinde zaten tetiklendi.");
           }
         } else {
-          // Eğer şu anki dakika alarm dakikası değilse, önceki tetiklenme
-          // bilgisini sıfırla ki yarın tekrar çalabilelim
           if (lastTriggeredAlarmTime != "") {
             lastTriggeredAlarmTime = "";
           }
@@ -565,9 +599,15 @@ void triggerAlarm() {
   beepState = true;
   lastBeepTime = millis();
   alarmStartTime = millis();
-  digitalWrite(LED_PIN, HIGH);
-  digitalWrite(BUZZER_PIN, HIGH);
-  Serial.println("[ALARM] Alarm başlatıldı! (Butona basılana kadar ötecek)");
+  
+  // İlgili LED'i kırmızı yak
+  if (alarmLedIndex >= 0 && alarmLedIndex < NUM_LEDS) {
+    strip.clear();
+    strip.setPixelColor(alarmLedIndex, strip.Color(255, 0, 0));
+    strip.show();
+  }
+  
+  Serial.printf("[ALARM] Alarm başlatıldı! LED:%d (Butona basılana kadar ötecek)\n", alarmLedIndex);
 
   // ESP-NOW ile bilekliğe sinyal gönder
   sendESPNowSignal();
@@ -612,8 +652,18 @@ void sendMissedAlertToApp() {
 // Alarm durdur
 void stopAlarm() {
   alarmActive = false;
-  digitalWrite(LED_PIN, LOW);
   noTone(BUZZER_PIN);
+  
+  // İlaç alındı efekti: İlgili LED yeşile döner, 1 sn sonra söner
+  if (alarmLedIndex >= 0 && alarmLedIndex < NUM_LEDS) {
+    strip.setPixelColor(alarmLedIndex, strip.Color(0, 255, 0)); // Yeşil = Alındı
+    strip.show();
+    delay(1000);
+  }
+  strip.clear();
+  strip.show();
+  alarmLedIndex = -1;
+  
   Serial.println("[ALARM] Alarm durduruldu.");
   
   // Bilekliğin de susması için DUR sinyali gönder
@@ -684,7 +734,7 @@ void updateDeviceStatus(String status) {
   content.set("fields/radioModule/stringValue", "ESP-NOW");
   content.set(
       "fields/pins/stringValue",
-      "LED:4 | BZR:46 | BTN:36 | Radio:ESP-NOW(dahili)");
+      "NeoPixel:4(21LED) | SPK:46 | BTN:36 | Radio:ESP-NOW");
 
   String documentPath = "devices/" + deviceId;
   if (Firebase.Firestore.patchDocument(
@@ -696,17 +746,35 @@ void updateDeviceStatus(String status) {
   }
 }
 
-// Başlangıç testi: LED + Buzzer kısa bip
+// Başlangıç testi: Gökkuşağı dalgası + kısa bip
 void startupSequence() {
-  Serial.println("[TEST] Donanım testi...");
-  for (int i = 0; i < 2; i++) {
-    digitalWrite(LED_PIN, HIGH);
-    tone(BUZZER_PIN, 2000); // 2000 Hz ince bir test sesi
-    delay(150);
-    digitalWrite(LED_PIN, LOW);
-    noTone(BUZZER_PIN);
-    delay(150);
+  Serial.println("[TEST] Donanım testi (21 LED Gökkuşağı)...");
+  
+  // Gökkuşağı dalgası: LED'ler sırayla farklı renklerde yanar
+  for (int j = 0; j < 2; j++) {
+    for (int i = 0; i < NUM_LEDS; i++) {
+      int hue = (i * 65536 / NUM_LEDS);
+      strip.clear();
+      strip.setPixelColor(i, strip.gamma32(strip.ColorHSV(hue)));
+      strip.show();
+      tone(BUZZER_PIN, 1000 + (i * 100), 30);
+      delay(60);
+    }
   }
+  
+  // Tüm LED'leri öğün renklerinde 1 sn göster
+  for (int i = 0; i < 7; i++) {
+    strip.setPixelColor(i, periodColors[0]);      // Sabah yeşil
+    strip.setPixelColor(i + 7, periodColors[1]);  // Öğle mavi
+    strip.setPixelColor(i + 14, periodColors[2]); // Akşam mor
+  }
+  strip.show();
+  tone(BUZZER_PIN, 2000, 200);
+  delay(1000);
+  
+  strip.clear();
+  strip.show();
+  noTone(BUZZER_PIN);
   Serial.println("[TEST] Tamamlandı.");
 }
 
