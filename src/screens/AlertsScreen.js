@@ -146,7 +146,7 @@ export default function AlertsScreen() {
         key={notif.id}
         style={[styles.notifCard, !notif.isRead && styles.notifCardNew]}
         onPress={() => handleNotifPress(notif)}
-        activeOpacity={0.8}
+        activeOpacity={0.6}
       >
         <View style={[styles.notifIcon, { backgroundColor: iconConfig.bg }]}>
           <Ionicons name={iconConfig.name} size={22} color={iconConfig.color} />
@@ -175,12 +175,12 @@ export default function AlertsScreen() {
           <Text style={styles.title}>Bildirimler</Text>
           <View style={{ flexDirection: 'row', gap: 10 }}>
             {alerts.length > 0 && (
-              <TouchableOpacity style={styles.clearBtn} onPress={handleDeleteAll}>
+              <TouchableOpacity style={styles.clearBtn} onPress={handleDeleteAll} activeOpacity={0.6}>
                 <Text style={[styles.clearBtnText, { color: colors.accent }]}>Tümünü Sil</Text>
               </TouchableOpacity>
             )}
             {unreadCount > 0 && (
-              <TouchableOpacity style={styles.clearBtn} onPress={handleMarkAllRead}>
+              <TouchableOpacity style={styles.clearBtn} onPress={handleMarkAllRead} activeOpacity={0.6}>
                 <Text style={styles.clearBtnText}>Okundu Yap</Text>
               </TouchableOpacity>
             )}
@@ -195,7 +195,7 @@ export default function AlertsScreen() {
               setSelectedNotif(urgentAlert);
               setShowAlert(true);
             }}
-            activeOpacity={0.85}
+            activeOpacity={0.7}
           >
             <View style={styles.alertBannerIcon}>
               <Ionicons name="alert" size={24} color={colors.textOnAccent} />
@@ -222,6 +222,7 @@ export default function AlertsScreen() {
               key={filter.key}
               style={[styles.filterChip, activeFilter === filter.key && styles.filterChipActive]}
               onPress={() => setActiveFilter(filter.key)}
+              activeOpacity={0.6}
             >
               {filter.icon && (
                 <Ionicons

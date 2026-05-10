@@ -163,6 +163,7 @@ export default function ScheduleScreen() {
           <TouchableOpacity 
             style={{backgroundColor: colors.accent, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, flexDirection: 'row', alignItems: 'center'}} 
             onPress={handleForceSync}
+            activeOpacity={0.6}
           >
             <Ionicons name="sync-outline" size={16} color="white" style={{marginRight: 4}} />
             <Text style={{color: 'white', fontWeight: 'bold'}}>Senkronize Et</Text>
@@ -234,7 +235,7 @@ export default function ScheduleScreen() {
                     !hasMed && styles.emptyCell,
                   ]}
                   onPress={() => handleCellPress(periodIdx, dayIdx)}
-                  activeOpacity={0.7}
+                  activeOpacity={0.5}
                 >
                   {hasMed ? (
                     <>
@@ -326,16 +327,16 @@ export default function ScheduleScreen() {
                       <Text style={{ ...typography.bodyLarge, fontWeight: 'bold', color: colors.textPrimary }}>{med.name || med.medicationName}</Text>
                       <Text style={{ ...typography.bodyMedium, color: colors.textSecondary }}>Saat: {med.time}</Text>
                     </View>
-                    <TouchableOpacity style={{ padding: spacing.sm }} onPress={() => openEditMode(med)}>
+                    <TouchableOpacity style={{ padding: spacing.sm }} onPress={() => openEditMode(med)} activeOpacity={0.5}>
                       <Ionicons name="pencil-outline" size={20} color={colors.primary} />
                     </TouchableOpacity>
-                    <TouchableOpacity style={{ padding: spacing.sm }} onPress={() => handleDelete(med.id)}>
+                    <TouchableOpacity style={{ padding: spacing.sm }} onPress={() => handleDelete(med.id)} activeOpacity={0.5}>
                       <Ionicons name="trash-outline" size={20} color={colors.accent} />
                     </TouchableOpacity>
                   </View>
                 ))}
                 
-                <Pressable style={[styles.saveBtn, { marginTop: spacing.lg, backgroundColor: colors.primarySurface }]} onPress={openAddMode}>
+                <Pressable style={({ pressed }) => [styles.saveBtn, { marginTop: spacing.lg, backgroundColor: colors.primarySurface }, pressed && { opacity: 0.7, transform: [{ scale: 0.97 }] }]} onPress={openAddMode}>
                   <Ionicons name="add" size={20} color={colors.primary} />
                   <Text style={[styles.saveBtnText, { color: colors.primary }]}>Yeni İlaç Ekle</Text>
                 </Pressable>
@@ -362,11 +363,11 @@ export default function ScheduleScreen() {
 
                 <View style={{ flexDirection: 'row', gap: spacing.md }}>
                   {selectedCell.data && selectedCell.data.length > 0 && (
-                    <Pressable style={[styles.saveBtn, { flex: 1, backgroundColor: colors.surfaceVariant }]} onPress={() => setSheetMode('list')}>
+                    <Pressable style={({ pressed }) => [styles.saveBtn, { flex: 1, backgroundColor: colors.surfaceVariant }, pressed && { opacity: 0.7, transform: [{ scale: 0.97 }] }]} onPress={() => setSheetMode('list')}>
                       <Text style={[styles.saveBtnText, { color: colors.textPrimary }]}>İptal</Text>
                     </Pressable>
                   )}
-                  <Pressable style={[styles.saveBtn, { flex: 2 }]} onPress={handleSave}>
+                  <Pressable style={({ pressed }) => [styles.saveBtn, { flex: 2 }, pressed && { opacity: 0.7, transform: [{ scale: 0.97 }] }]} onPress={handleSave}>
                     <Ionicons name="checkmark" size={20} color={colors.textOnPrimary} />
                     <Text style={styles.saveBtnText}>Kaydet</Text>
                   </Pressable>

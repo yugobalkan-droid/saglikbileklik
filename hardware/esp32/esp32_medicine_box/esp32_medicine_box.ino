@@ -30,6 +30,7 @@
 
 /* ─── Firebase Ayarları ─────────────────────────────────── */
 #define API_KEY "AIzaSyDHII3X9MFkX5_HF6W5NtyosNyHFef9uDs"
+#define DATABASE_URL "https://saglikbileklik-356ed-default-rtdb.europe-west1.firebasedatabase.app"
 #define PROJECT_ID "saglikbileklik-356ed"
 #define USER_EMAIL "test@test.com"
 #define USER_PASSWORD "test123"
@@ -74,6 +75,7 @@ String lastTriggeredAlarmTime = "";
 // Sürekli alarm (non-blocking) için değişkenler
 unsigned long lastBeepTime = 0;
 unsigned long alarmStartTime = 0;
+unsigned long lastESPNowSend = 0;  // ESP-NOW sinyal gönderim zamanlayıcı
 bool beepState = false;
 
 // Ses ayarları
@@ -83,6 +85,14 @@ int customSpeed = 500;
 int volume = 100;
 bool testSoundActive = false;
 unsigned long testSoundStartTime = 0;
+
+// WiFi & Firebase bağlantı kurtarma
+unsigned long lastWiFiCheck = 0;
+const unsigned long WIFI_CHECK_INTERVAL = 30000; // 30 sn
+unsigned long lastTokenCheck = 0;
+const unsigned long TOKEN_CHECK_INTERVAL = 60000; // 1 dk
+int firebaseFailCount = 0;
+const int MAX_FIREBASE_FAILS = 3; // 3 ardışık hata sonrası token sıfırla
 
 /* ─── Fonksiyon Bildirimleri ─────────────────────────────── */
 void stopAlarm();
@@ -107,6 +117,10 @@ void onESPNowDataRecv(const uint8_t *mac, const uint8_t *data, int dataLen) {
     if (alarmActive) {
       stopAlarm();
       confirmMedicineTaken();
+      // Ek DUR sinyali gönder (güvenilirlik için 2 kez)
+      sendESPNowStopSignal();
+      delay(50);
+      sendESPNowStopSignal();
     }
   }
 }
@@ -230,11 +244,16 @@ void setup() {
 
   // ── Firebase Başlat ──
   config.api_key = API_KEY;
+  config.database_url = DATABASE_URL;  // Token yenileme için gerekli!
   auth.user.email = USER_EMAIL;
   auth.user.password = USER_PASSWORD;
   config.token_status_callback = tokenStatusCallback;
+  config.timeout.networkReconnect = 10000;   // 10 sn ağ yeniden bağlanma
+  config.timeout.serverResponse = 10000;     // 10 sn sunucu cevap süresi
+  config.timeout.socketConnection = 10000;   // 10 sn soket bağlantı
 
   Firebase.begin(&config, &auth);
+  Firebase.reconnectNetwork(true);
   Firebase.reconnectWiFi(true);
 
   // Başlangıç LED & Buzzer testi
@@ -250,6 +269,55 @@ void setup() {
    LOOP
    ───────────────────────────────────────────────────────── */
 void loop() {
+  // ── WiFi Bağlantı Kontrolü & Otomatik Yeniden Bağlanma ──
+  if (millis() - lastWiFiCheck > WIFI_CHECK_INTERVAL) {
+    lastWiFiCheck = millis();
+    if (WiFi.status() != WL_CONNECTED) {
+      Serial.println("[WIFI] ❌ Bağlantı koptu! Yeniden bağlanılıyor...");
+      WiFi.disconnect();
+      delay(500);
+      WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+      int retries = 0;
+      while (WiFi.status() != WL_CONNECTED && retries < 20) {
+        delay(500);
+        Serial.print(".");
+        retries++;
+      }
+      if (WiFi.status() == WL_CONNECTED) {
+        Serial.println("\n[WIFI] ✅ Yeniden bağlandı! IP: " + WiFi.localIP().toString());
+        WiFi.softAP("CareSync_Box", "12345678", WiFi.channel(), 0);
+        configTime(10800, 0, "pool.ntp.org", "time.nist.gov");
+        firebaseFailCount = 0;
+      } else {
+        Serial.println("\n[WIFI] ❌ Hala bağlanamadı, sonraki döngüde tekrar deneyecek.");
+      }
+    }
+  }
+
+  // ── Firebase Token Kurtarma Mekanizması ──
+  if (millis() - lastTokenCheck > TOKEN_CHECK_INTERVAL) {
+    lastTokenCheck = millis();
+    if (!Firebase.ready()) {
+      firebaseFailCount++;
+      Serial.printf("[FIREBASE] ⚠️ Token hazır değil! Ardışık hata: %d/%d\n", firebaseFailCount, MAX_FIREBASE_FAILS);
+      if (firebaseFailCount >= MAX_FIREBASE_FAILS) {
+        Serial.println("[FIREBASE] 🔄 Token sıfırlanıyor (connection lost kurtarma)...");
+        Firebase.reset(&config);
+        delay(1000);
+        Firebase.begin(&config, &auth);
+        Firebase.reconnectNetwork(true);
+        Firebase.reconnectWiFi(true);
+        firebaseFailCount = 0;
+        Serial.println("[FIREBASE] ✅ Firebase yeniden başlatıldı!");
+      }
+    } else {
+      if (firebaseFailCount > 0) {
+        Serial.println("[FIREBASE] ✅ Token tekrar aktif.");
+        firebaseFailCount = 0;
+      }
+    }
+  }
+
   // ── NTP Yedek Kontrolü ve Bilgi Yazdırma ──
   static unsigned long lastTimePrint = 0;
   if (millis() - lastTimePrint > 60000) {
@@ -316,17 +384,24 @@ void loop() {
           strip.show();
         }
         
-        int duration = (speedMs * volume) / 100;
+      int duration = (speedMs * volume) / 100;
         
         if (beepState) {
           tone(BUZZER_PIN, freq1, duration);
-          if (alarmActive) sendESPNowSignal();
         } else {
           if (freq2 > 0) {
             tone(BUZZER_PIN, freq2, duration);
           } else {
             noTone(BUZZER_PIN);
           }
+        }
+        
+        // ESP-NOW: Bilekliğe periyodik sinyal (her 10 saniyede bir)
+        // Her beep'te göndermek bilekliği tekrar tetikleyebilir!
+        if (alarmActive && (currentMillis - lastESPNowSend >= 10000)) {
+          lastESPNowSend = currentMillis;
+          sendESPNowSignal();
+          Serial.println("[ESP-NOW] 📡 Periyodik alarm sinyali gönderildi (10sn).");
         }
       }
     }
@@ -355,8 +430,8 @@ void loop() {
   }
 
   // ── Firebase Periyodik Kontrol ──
-  if (Firebase.ready() && (millis() - lastFirebaseCheck > FIREBASE_INTERVAL ||
-                           lastFirebaseCheck == 0)) {
+  if (WiFi.status() == WL_CONNECTED && Firebase.ready() && 
+      (millis() - lastFirebaseCheck > FIREBASE_INTERVAL || lastFirebaseCheck == 0)) {
     lastFirebaseCheck = millis();
     checkFirebaseAlarm();
   }
@@ -559,7 +634,13 @@ void checkFirebaseAlarm() {
       }
     }
   } else {
-    Serial.println("[Firebase] Hata: " + fbdo.errorReason());
+    String errMsg = fbdo.errorReason();
+    Serial.println("[Firebase] Hata: " + errMsg);
+    // Token hatası tespit edilirse sayacı artır
+    if (errMsg.indexOf("token") >= 0 || errMsg.indexOf("connection lost") >= 0) {
+      firebaseFailCount++;
+      Serial.printf("[FIREBASE] ⚠️ Token/bağlantı hatası! Sayaç: %d/%d\n", firebaseFailCount, MAX_FIREBASE_FAILS);
+    }
   }
 }
 
@@ -609,8 +690,11 @@ void triggerAlarm() {
   
   Serial.printf("[ALARM] Alarm başlatıldı! LED:%d (Butona basılana kadar ötecek)\n", alarmLedIndex);
 
-  // ESP-NOW ile bilekliğe sinyal gönder
+  // ESP-NOW ile bilekliğe ilk sinyal gönder
+  lastESPNowSend = millis();  // Zamanlayıcıyı başlat
   sendESPNowSignal();
+  delay(100);
+  sendESPNowSignal();  // Güvenilirlik için 2. sinyal
 
   // Mobil uygulamaya "Alarm Çaldı" bilgisini gönder
   sendAlertToApp();
@@ -666,7 +750,9 @@ void stopAlarm() {
   
   Serial.println("[ALARM] Alarm durduruldu.");
   
-  // Bilekliğin de susması için DUR sinyali gönder
+  // Bilekliğin de susması için DUR sinyali gönder (2 kez — güvenilirlik)
+  sendESPNowStopSignal();
+  delay(50);
   sendESPNowStopSignal();
 }
 

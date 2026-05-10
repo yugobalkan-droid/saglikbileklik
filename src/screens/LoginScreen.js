@@ -162,7 +162,7 @@ export default function LoginScreen() {
             style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
             onPress={handleSubmit}
             disabled={loading}
-            activeOpacity={0.85}
+            activeOpacity={0.6}
           >
             {loading ? (
               <ActivityIndicator color={colors.textOnPrimary} />

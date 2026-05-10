@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   TextInput,
   Linking,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius, shadows } from '../theme';
@@ -29,7 +30,7 @@ const SettingsItem = ({ icon, iconBg, iconColor, title, subtitle, hasSwitch, swi
   <TouchableOpacity
     style={styles.settingsItem}
     onPress={onPress}
-    activeOpacity={hasSwitch ? 1 : 0.7}
+    activeOpacity={hasSwitch ? 1 : 0.6}
     disabled={hasSwitch && !onPress}
   >
     <View style={[styles.settingsIcon, { backgroundColor: iconBg || colors.primarySurface }]}>
@@ -641,7 +642,7 @@ export default function SettingsScreen() {
           </View>
 
           <Pressable
-            style={[styles.saveBtn, savingPatient && { opacity: 0.7 }]}
+            style={({ pressed }) => [styles.saveBtn, savingPatient && { opacity: 0.7 }, pressed && { opacity: 0.7, transform: [{ scale: 0.97 }] }]}
             onPress={handleAddPatient}
             disabled={savingPatient}
           >
@@ -676,7 +677,7 @@ export default function SettingsScreen() {
           </View>
 
           <Pressable
-            style={[styles.saveBtn, savingProfile && { opacity: 0.7 }]}
+            style={({ pressed }) => [styles.saveBtn, savingProfile && { opacity: 0.7 }, pressed && { opacity: 0.7, transform: [{ scale: 0.97 }] }]}
             onPress={handleSaveProfile}
             disabled={savingProfile}
           >
@@ -733,7 +734,7 @@ export default function SettingsScreen() {
           </View>
 
           <Pressable
-            style={[styles.saveBtn, savingEditPatient && { opacity: 0.7 }]}
+            style={({ pressed }) => [styles.saveBtn, savingEditPatient && { opacity: 0.7 }, pressed && { opacity: 0.7, transform: [{ scale: 0.97 }] }]}
             onPress={handleSaveEditPatient}
             disabled={savingEditPatient}
           >
@@ -789,7 +790,7 @@ export default function SettingsScreen() {
           />
 
           <Pressable
-            style={[styles.saveBtn, savingEmergency && { opacity: 0.7 }]}
+            style={({ pressed }) => [styles.saveBtn, savingEmergency && { opacity: 0.7 }, pressed && { opacity: 0.7, transform: [{ scale: 0.97 }] }]}
             onPress={handleSaveEmergency}
             disabled={savingEmergency}
           >
@@ -941,7 +942,7 @@ export default function SettingsScreen() {
           {delayOptions.map((opt) => (
             <Pressable
               key={opt.value}
-              style={[styles.selectOption, selectedDelay === opt.value && styles.selectOptionActive]}
+              style={({ pressed }) => [styles.selectOption, selectedDelay === opt.value && styles.selectOptionActive, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
               onPress={() => {
                 setSelectedDelay(opt.value);
                 setDelaySheetVisible(false);
@@ -971,7 +972,7 @@ export default function SettingsScreen() {
           ].map((opt) => (
             <Pressable
               key={opt.value}
-              style={[styles.selectOption, selectedTheme === opt.value && styles.selectOptionActive]}
+              style={({ pressed }) => [styles.selectOption, selectedTheme === opt.value && styles.selectOptionActive, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
               onPress={() => {
                 setSelectedTheme(opt.value);
                 setThemeSheetVisible(false);
@@ -1007,7 +1008,7 @@ export default function SettingsScreen() {
           ].map((opt) => (
             <Pressable
               key={opt.value}
-              style={[styles.selectOption, selectedLang === opt.value && styles.selectOptionActive]}
+              style={({ pressed }) => [styles.selectOption, selectedLang === opt.value && styles.selectOptionActive, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
               onPress={() => {
                 setSelectedLang(opt.value);
                 setLangSheetVisible(false);
@@ -1050,7 +1051,7 @@ export default function SettingsScreen() {
           ].map((opt) => (
             <Pressable
               key={opt.value}
-              style={[styles.selectOption, melodyType === opt.value && styles.selectOptionActive]}
+              style={({ pressed }) => [styles.selectOption, melodyType === opt.value && styles.selectOptionActive, pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }]}
               onPress={() => setMelodyType(opt.value)}
             >
               <Text style={[styles.selectOptionText, melodyType === opt.value && styles.selectOptionTextActive]}>

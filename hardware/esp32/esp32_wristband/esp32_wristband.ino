@@ -46,6 +46,12 @@ uint8_t alarmType = 0;
 bool buttonPressed = false;
 bool vibrateState = false;
 
+/* ─── ESP-NOW Callback Flag'leri (ISR-safe) ─────────────── */
+// ESP-NOW callback'leri WiFi task içinde çalışır, doğrudan
+// GPIO işlemleri sorun çıkarabilir. Flag ile loop()'a aktarıyoruz.
+volatile bool pendingAlarmSignal = false;
+volatile bool pendingStopSignal = false;
+
 /* ─── Zamanlama ──────────────────────────────────────────── */
 unsigned long lastBatteryCheck = 0;
 unsigned long lastBLENotify = 0;
@@ -156,6 +162,30 @@ void loop() {
   unsigned long now = millis();
 
   // ══════════════════════════════════════════════════════
+  // 0. ESP-NOW FLAG İŞLEME (callback'ten gelen sinyaller)
+  // ══════════════════════════════════════════════════════
+  if (pendingStopSignal) {
+    pendingStopSignal = false;
+    DEBUG_PRINTLN("[LOOP] DUR flagı işleniyor...");
+    if (alarmActive) {
+      stopAlarm();
+    }
+  }
+
+  if (pendingAlarmSignal) {
+    pendingAlarmSignal = false;
+    DEBUG_PRINTLN("[LOOP] ALARM flagı işleniyor...");
+    if (!alarmActive && (lastAlarmStopped == 0 || millis() - lastAlarmStopped > 5000)) {
+      triggerAlarm(ALARM_TYPE_MEDICINE);
+    } else if (alarmActive) {
+      DEBUG_PRINTLN("[ALARM] ⚠️ Alarm zaten aktif, sinyal yoksayıldı.");
+    } else {
+      DEBUG_PRINTF("[ALARM] ⏳ Cooldown aktif (%lu ms kaldı), sinyal yoksayıldı.\n",
+                   5000 - (millis() - lastAlarmStopped));
+    }
+  }
+
+  // ══════════════════════════════════════════════════════
   // 1. ALARM YÖNETİMİ (en yüksek öncelik)
   // ══════════════════════════════════════════════════════
   if (alarmActive) {
@@ -233,23 +263,17 @@ void loop() {
    ALARM FONKSİYONLARI
    ───────────────────────────────────────────────────────── */
 
-// İlaç kutusundan ESP-NOW mesajı geldiğinde çağrılır
+// İlaç kutusundan ESP-NOW mesajı geldiğinde çağrılır (WiFi task içinde!)
+// Doğrudan GPIO işlemi yapmayız, flag ile loop()'a aktarırız.
 void onMedicineAlertReceived(const char *msg) {
-  DEBUG_PRINTLN("[ALARM] 💊 İlaç kutusu sinyali alındı! (ESP-NOW)");
-  // Alarm aktif değilse ve son durdurulmanın üzerinden 1 saniye geçtiyse (cooldown)
-  if (!alarmActive && (lastAlarmStopped == 0 || millis() - lastAlarmStopped > 1000)) {
-    triggerAlarm(ALARM_TYPE_MEDICINE);
-  } else if (!alarmActive) {
-    DEBUG_PRINTLN("[ALARM] ⏳ Butona yeni basıldı, gelen sinyal yoksayıldı (Cooldown).");
-  }
+  DEBUG_PRINTLN("[ALARM] 💊 İlaç kutusu sinyali alındı! (ESP-NOW) -> Flag kuruluyor");
+  pendingAlarmSignal = true;
 }
 
 // İlaç kutusundan DUR mesajı geldiğinde çağrılır
 void onStopAlertReceived(const char *msg) {
-  DEBUG_PRINTLN("[ALARM] 🛑 İlaç kutusundan DUR sinyali alındı!");
-  if (alarmActive) {
-    stopAlarm();
-  }
+  DEBUG_PRINTLN("[ALARM] 🛑 İlaç kutusundan DUR sinyali alındı! -> Flag kuruluyor");
+  pendingStopSignal = true;
 }
 
 // App'ten BLE üzerinden alarm komutu geldiğinde çağrılır
@@ -288,9 +312,15 @@ void triggerAlarm(uint8_t type) {
 void stopAlarm() {
   alarmActive = false;
   alarmType = 0;
+  vibrateState = false;
+  alarmPatternIndex = 0;
+  alarmRepeatCount = 0;
+  inAlarmPause = false;
 
-  // Motorları kapat
+  // Motorları kapat (çift kontrol — donanım güvenliği)
   setVibration(false);
+  delay(10);
+  digitalWrite(VIBRO_MOTOR_PIN, LOW);  // Doğrudan pin garantisi
 
   // LED kapat
   digitalWrite(STATUS_LED_PIN, LOW);
@@ -298,10 +328,10 @@ void stopAlarm() {
   // BLE'ye bildir
   ble.updateAlarmState(false);
   
-  // Cooldown başlat
+  // Cooldown başlat (5 saniyelik koruma)
   lastAlarmStopped = millis();
 
-  DEBUG_PRINTLN("[ALARM] ✅ Alarm durduruldu.");
+  DEBUG_PRINTLN("[ALARM] ✅ Alarm durduruldu. 5sn cooldown başladı.");
 }
 
 // Alarm titreşim döngüsü (non-blocking)
@@ -345,8 +375,11 @@ void handleAlarmVibration(unsigned long now) {
   }
 }
 
-// 2 motoru birlikte aç/kapa
-void setVibration(bool on) { digitalWrite(VIBRO_MOTOR_PIN, on ? HIGH : LOW); }
+// Titreşim motorunu aç/kapa (debug loglu)
+void setVibration(bool on) {
+  digitalWrite(VIBRO_MOTOR_PIN, on ? HIGH : LOW);
+  DEBUG_PRINTF("[MOTOR] GPIO%d = %s\n", VIBRO_MOTOR_PIN, on ? "HIGH (çalışıyor)" : "LOW (kapalı)");
+}
 
 /* ─────────────────────────────────────────────────────────
    BUTON FONKSİYONLARI
@@ -376,16 +409,24 @@ void handleButton(unsigned long now) {
         // 1. Alarmı durdur
         stopAlarm();
 
-        // 2. ESP-NOW üzerinden ilaç kutusuna onay gönder
+        // 2. ESP-NOW üzerinden ilaç kutusuna onay gönder (2 kez — güvenilirlik)
+        espnow.sendMedicineConfirm();
+        delay(50);
         espnow.sendMedicineConfirm();
 
         // 3. BLE üzerinden app'e bildir
         ble.notifyMedicineTaken();
 
-        // 4. Onay titreşimi (2 kısa bip)
+        // 4. Motor kesinlikle kapalı olduğundan emin ol
+        digitalWrite(VIBRO_MOTOR_PIN, LOW);
+
+        // 5. Onay titreşimi (2 kısa bip)
         confirmFeedback();
 
-        // 5. Firebase bildirim kaldırıldı – ilaç kutusu NRF24 onayı ile Firebase'i günceller
+        // 6. Son kontrol: Motor tekrar kapalı
+        digitalWrite(VIBRO_MOTOR_PIN, LOW);
+
+        // 7. Firebase bildirim kaldırıldı – ilaç kutusu NRF24 onayı ile Firebase'i günceller
 
       } else {
         // ── Alarm yokken: Durum göster (kısa LED blink) ──
@@ -401,16 +442,33 @@ void handleButton(unsigned long now) {
    GERİ BİLDİRİM FONKSİYONLARI
    ───────────────────────────────────────────────────────── */
 
-// Başlangıç testi: sadece LED (titreşim yalnızca ilaç alarmında!)
+// Başlangıç testi: LED + titreşim motoru testi
 void startupFeedback() {
-  DEBUG_PRINTLN("[TEST] Donanım testi...");
+  DEBUG_PRINTLN("[TEST] Donanım testi başlıyor...");
+  
+  // 1. LED testi
+  DEBUG_PRINTLN("[TEST] LED testi...");
   for (int i = 0; i < 2; i++) {
     digitalWrite(STATUS_LED_PIN, HIGH);
     delay(120);
     digitalWrite(STATUS_LED_PIN, LOW);
     delay(120);
   }
-  DEBUG_PRINTLN("[TEST] ✅ Tamamlandı.");
+  
+  // 2. Titreşim motoru testi (kısa bir bip)
+  DEBUG_PRINTLN("[TEST] Titreşim motoru testi...");
+  DEBUG_PRINTF("[TEST] Motor pin: GPIO%d\n", VIBRO_MOTOR_PIN);
+  digitalWrite(VIBRO_MOTOR_PIN, HIGH);
+  delay(300);
+  digitalWrite(VIBRO_MOTOR_PIN, LOW);
+  delay(200);
+  digitalWrite(VIBRO_MOTOR_PIN, HIGH);
+  delay(300);
+  digitalWrite(VIBRO_MOTOR_PIN, LOW);
+  
+  DEBUG_PRINTLN("[TEST] ✅ Donanım testi tamamlandı.");
+  DEBUG_PRINTLN("[TEST] Motor titrediyse GPIO doğru çalışıyor.");
+  DEBUG_PRINTLN("[TEST] Motor titremediyse kablolama/transistor kontrol edin!");
 }
 
 // İlaç onay geri bildirimi: 2 hızlı kısa titreşim

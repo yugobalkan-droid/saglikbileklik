@@ -92,17 +92,17 @@ export default function AlertOverlay({ visible, onClose, patientName, medication
           </View>
 
           {/* Action Buttons */}
-          <Pressable style={styles.primaryBtn} onPress={handleCall}>
+          <Pressable style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.7, transform: [{ scale: 0.97 }] }]} onPress={handleCall}>
             <Ionicons name="call" size={20} color={colors.textOnPrimary} />
             <Text style={styles.primaryBtnText}>Hastayı Ara</Text>
           </Pressable>
 
-          <Pressable style={styles.secondaryBtn} onPress={handleResend}>
+          <Pressable style={({ pressed }) => [styles.secondaryBtn, pressed && { opacity: 0.7, transform: [{ scale: 0.97 }] }]} onPress={handleResend}>
             <Ionicons name="notifications" size={20} color={colors.primary} />
             <Text style={styles.secondaryBtnText}>Hatırlatıcıyı Tekrar Gönder</Text>
           </Pressable>
 
-          <Pressable style={styles.tertiaryBtn} onPress={onClose}>
+          <Pressable style={({ pressed }) => [styles.tertiaryBtn, pressed && { opacity: 0.7, transform: [{ scale: 0.97 }] }]} onPress={onClose}>
             <Ionicons name="volume-mute" size={20} color={colors.textSecondary} />
             <Text style={styles.tertiaryBtnText}>Sustur</Text>
           </Pressable>

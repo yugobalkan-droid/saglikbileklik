@@ -8,7 +8,7 @@ export default function FAB({ onPress, icon = 'add', size = 56 }) {
     <TouchableOpacity
       style={[styles.fab, { width: size, height: size, borderRadius: size / 2 }]}
       onPress={onPress}
-      activeOpacity={0.85}
+      activeOpacity={0.6}
     >
       <Ionicons name={icon} size={28} color={colors.textOnPrimary} />
     </TouchableOpacity>

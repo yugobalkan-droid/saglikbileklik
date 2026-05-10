@@ -11,6 +11,7 @@ import {
   Alert,
   TextInput,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius, shadows } from '../theme';
@@ -27,6 +28,30 @@ import { createPatient } from '../services/patientService';
 
 const PERIOD_NAMES = ['Sabah', 'Öğle', 'Akşam'];
 const PERIOD_TIMES = ['08:00', '14:00', '20:00'];
+
+// Animasyonlu buton bileşeni — basıldığında scale + opacity efekti
+const AnimatedPressable = ({ onPress, style, disabled, children }) => {
+  const scaleAnim = new Animated.Value(1);
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, { toValue: 0.95, useNativeDriver: true, speed: 50, bounciness: 4 }).start();
+  };
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, speed: 50, bounciness: 4 }).start();
+  };
+  return (
+    <Animated.View style={[{ transform: [{ scale: scaleAnim }] }]}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        disabled={disabled}
+        style={({ pressed }) => [style, pressed && { opacity: 0.7 }]}
+      >
+        {children}
+      </Pressable>
+    </Animated.View>
+  );
+};
 
 export default function DashboardScreen({ navigation }) {
   const { user } = useAuth();
@@ -215,7 +240,7 @@ export default function DashboardScreen({ navigation }) {
             <Text style={styles.greeting}>Hoş geldiniz 👋</Text>
             <Text style={styles.dateText}>{todayStr}</Text>
           </View>
-          <TouchableOpacity style={styles.profileBtn}>
+          <TouchableOpacity style={styles.profileBtn} activeOpacity={0.6}>
             <Ionicons name="person-circle-outline" size={40} color={colors.primary} />
           </TouchableOpacity>
         </View>
@@ -265,6 +290,7 @@ export default function DashboardScreen({ navigation }) {
             <TouchableOpacity
               style={styles.emptyPrimaryBtn}
               onPress={() => setShowPatientSheet(true)}
+              activeOpacity={0.6}
             >
               <Ionicons name="person-add-outline" size={20} color={colors.textOnPrimary} />
               <Text style={styles.emptyPrimaryBtnText}>Hasta Ekle</Text>
@@ -273,6 +299,7 @@ export default function DashboardScreen({ navigation }) {
               style={styles.emptySecondaryBtn}
               onPress={handleSeedData}
               disabled={seeding}
+              activeOpacity={0.6}
             >
               <Ionicons name="cloud-download-outline" size={18} color={colors.primary} />
               <Text style={styles.emptySecondaryBtnText}>
@@ -361,17 +388,17 @@ export default function DashboardScreen({ navigation }) {
               {/* Alarm Kontrol Butonları */}
               <View style={styles.wristbandActions}>
                 {(bleConnected ? alarmActive : deviceStatus?.bracelet?.alarmActive) ? (
-                  <TouchableOpacity style={styles.wristbandStopBtn} onPress={handleStopAlarm}>
+                  <TouchableOpacity style={styles.wristbandStopBtn} onPress={handleStopAlarm} activeOpacity={0.6}>
                     <Ionicons name="stop-circle-outline" size={18} color="#FFF" />
                     <Text style={styles.wristbandBtnText}>Alarmı Durdur</Text>
                   </TouchableOpacity>
                 ) : (
-                  <TouchableOpacity style={styles.wristbandAlarmBtn} onPress={handleTriggerAlarm}>
+                  <TouchableOpacity style={styles.wristbandAlarmBtn} onPress={handleTriggerAlarm} activeOpacity={0.6}>
                     <Ionicons name="notifications-outline" size={18} color="#FFF" />
                     <Text style={styles.wristbandBtnText}>Alarm Gönder</Text>
                   </TouchableOpacity>
                 )}
-                <TouchableOpacity style={styles.wristbandDisconnectBtn} onPress={disconnectWristband}>
+                <TouchableOpacity style={styles.wristbandDisconnectBtn} onPress={disconnectWristband} activeOpacity={0.6}>
                   <Ionicons name={Platform.OS === 'web' ? 'wifi-outline' : 'bluetooth-outline'} size={18} color={colors.accent} />
                   <Text style={[styles.wristbandBtnText, { color: colors.accent }]}>
                     {Platform.OS === 'web' ? 'Yenile' : 'Bağlantıyı Kes'}
@@ -395,6 +422,7 @@ export default function DashboardScreen({ navigation }) {
                   style={styles.wristbandConnectBtn} 
                   onPress={connectWristband}
                   disabled={bleScanning}
+                  activeOpacity={0.6}
                 >
                   {bleScanning ? (
                     <ActivityIndicator size="small" color="#FFF" />
@@ -453,7 +481,7 @@ export default function DashboardScreen({ navigation }) {
         title="Yeni Hatırlatıcı"
       >
         <View style={styles.sheetContent}>
-          <TouchableOpacity style={styles.sheetOption} activeOpacity={0.7} onPress={() => {
+          <TouchableOpacity style={styles.sheetOption} activeOpacity={0.6} onPress={() => {
             setShowAddSheet(false);
             setTimeout(() => navigation.navigate('Schedule'), 300);
           }}>
@@ -467,7 +495,7 @@ export default function DashboardScreen({ navigation }) {
             <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.sheetOption} activeOpacity={0.7} onPress={() => {
+          <TouchableOpacity style={styles.sheetOption} activeOpacity={0.6} onPress={() => {
             setShowAddSheet(false);
             setTimeout(() => navigation.navigate('Schedule'), 300);
           }}>
@@ -483,7 +511,7 @@ export default function DashboardScreen({ navigation }) {
 
           {!patient && (
             <>
-              <TouchableOpacity style={styles.sheetOption} activeOpacity={0.7} onPress={() => {
+              <TouchableOpacity style={styles.sheetOption} activeOpacity={0.6} onPress={() => {
                 setShowAddSheet(false);
                 setTimeout(() => setShowPatientSheet(true), 300);
               }}>
@@ -497,7 +525,7 @@ export default function DashboardScreen({ navigation }) {
                 <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.sheetOption} activeOpacity={0.7} onPress={() => {
+              <TouchableOpacity style={styles.sheetOption} activeOpacity={0.6} onPress={() => {
                 setShowAddSheet(false);
                 setTimeout(() => handleSeedData(), 300);
               }}>
@@ -562,7 +590,7 @@ export default function DashboardScreen({ navigation }) {
             </View>
           </View>
 
-          <Pressable
+          <AnimatedPressable
             style={[styles.savePatientBtn, savingPatient && { opacity: 0.7 }]}
             onPress={handleAddPatient}
             disabled={savingPatient}
@@ -575,7 +603,7 @@ export default function DashboardScreen({ navigation }) {
                 <Text style={styles.savePatientBtnText}>Kaydet ve Başla</Text>
               </>
             )}
-          </Pressable>
+          </AnimatedPressable>
         </View>
       </BottomSheet>
     </View>
