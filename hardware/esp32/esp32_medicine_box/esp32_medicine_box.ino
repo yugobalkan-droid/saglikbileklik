@@ -492,6 +492,9 @@ void checkFirebaseAlarm() {
     // YÖNTEM C: Ses Testi Kontrolü
     bool testSound = doc["fields"]["testSound"]["booleanValue"] | false;
 
+    // YÖNTEM D: LED Testi Kontrolü
+    bool testLed = doc["fields"]["testLed"]["booleanValue"] | false;
+
     // SES AYARLARINI OKU
     if (doc["fields"].containsKey("settings")) {
       JsonObject settingsMap = doc["fields"]["settings"]["mapValue"]["fields"];
@@ -535,6 +538,16 @@ void checkFirebaseAlarm() {
       content.set("fields/testSound/booleanValue", false);
       String documentPath = "devices/" + deviceId;
       Firebase.Firestore.patchDocument(&fbdo, PROJECT_ID, "", documentPath.c_str(), content.raw(), "testSound");
+    }
+
+    if (testLed) {
+      Serial.println("[TEST] Firebase'den 'testLed=true' komutu geldi! LED'ler test ediliyor...");
+      startupSequence();
+      
+      FirebaseJson content;
+      content.set("fields/testLed/booleanValue", false);
+      String documentPath = "devices/" + deviceId;
+      Firebase.Firestore.patchDocument(&fbdo, PROJECT_ID, "", documentPath.c_str(), content.raw(), "testLed");
     }
 
     // YÖNTEM A: 'scheduleJSON' kontrolü (Bağımsız Cihaz)

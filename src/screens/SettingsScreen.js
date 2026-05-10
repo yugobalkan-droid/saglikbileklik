@@ -331,6 +331,20 @@ export default function SettingsScreen() {
     }
   };
 
+  // Sadece LED Test Sinyali
+  const handleLedTest = async () => {
+    try {
+      const boxRef = doc(db, 'devices', 'esp32_medicine_box_01');
+      await updateDoc(boxRef, {
+        testLed: true,
+        updatedAt: serverTimestamp()
+      });
+      Alert.alert('LED Testi Başlatıldı', 'İlaç kutusundaki tüm LEDler gökkuşağı animasyonuyla yanıp sönecektir.');
+    } catch (error) {
+      Alert.alert('Hata', 'LED testi gönderilemedi. Hata: ' + error.message);
+    }
+  };
+
   // ESP32 Test Sinyali Durdur
   const handleStopTestESP32 = async () => {
     try {
@@ -498,6 +512,16 @@ export default function SettingsScreen() {
             iconBg={colors.warningSurface}
             iconColor={colors.warning}
             onPress={handleTestESP32}
+            hasChevron={false}
+          />
+          <View style={styles.divider} />
+          <SettingsItem
+            icon="color-wand-outline"
+            title="Sadece LED Testi"
+            subtitle="Tüm LED'leri gökkuşağı animasyonu ile sına"
+            iconBg={colors.infoSurface}
+            iconColor={colors.info}
+            onPress={handleLedTest}
             hasChevron={false}
           />
           <View style={styles.divider} />

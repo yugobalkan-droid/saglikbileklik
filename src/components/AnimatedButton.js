@@ -1,6 +1,8 @@
 import React, { useRef } from 'react';
 import { Animated, Pressable, Platform, StyleSheet } from 'react-native';
 
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 /**
  * AnimatedButton - A cross-platform interactive button component.
  * Features:
@@ -54,25 +56,22 @@ export default function AnimatedButton({
   };
 
   return (
-    <Animated.View style={[{ transform: [{ scale: scaleAnim }], opacity: opacityAnim }]}>
-      <Pressable
-        onPress={onPress}
-        onLongPress={onLongPress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        onHoverIn={handleHoverIn}
-        onHoverOut={handleHoverOut}
-        disabled={disabled}
-        style={({ pressed, hovered }) => [
-          style,
-          // Fallback static styles just in case animated values take a tick
-          pressed && !disabled && { opacity: activeOpacity },
-          disabled && styles.disabled,
-        ]}
-      >
-        {children}
-      </Pressable>
-    </Animated.View>
+    <AnimatedPressable
+      onPress={onPress}
+      onLongPress={onLongPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      onHoverIn={handleHoverIn}
+      onHoverOut={handleHoverOut}
+      disabled={disabled}
+      style={[
+        style,
+        { transform: [{ scale: scaleAnim }], opacity: opacityAnim },
+        disabled && styles.disabled,
+      ]}
+    >
+      {children}
+    </AnimatedPressable>
   );
 }
 
