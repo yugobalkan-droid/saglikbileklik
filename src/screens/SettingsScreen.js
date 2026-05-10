@@ -25,9 +25,10 @@ import { auth } from '../config/firebase';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import BottomSheet from '../components/BottomSheet';
+import AnimatedButton from '../components/AnimatedButton';
 
 const SettingsItem = ({ icon, iconBg, iconColor, title, subtitle, hasSwitch, switchValue, onSwitchChange, onPress, hasChevron = true, danger }) => (
-  <TouchableOpacity
+  <AnimatedButton
     style={styles.settingsItem}
     onPress={onPress}
     activeOpacity={hasSwitch ? 1 : 0.6}
@@ -50,7 +51,7 @@ const SettingsItem = ({ icon, iconBg, iconColor, title, subtitle, hasSwitch, swi
     ) : hasChevron ? (
       <Ionicons name="chevron-forward" size={20} color={danger ? colors.accent : colors.textTertiary} />
     ) : null}
-  </TouchableOpacity>
+  </AnimatedButton>
 );
 
 export default function SettingsScreen() {
@@ -250,11 +251,7 @@ export default function SettingsScreen() {
 
   // Tıbbi notlar düzenleme
   const openMedicalNotes = () => {
-    if (!patient) return;
-    setEditPatientName(patient.name || '');
-    setEditPatientAge(patient.age?.toString() || '');
-    setEditPatientDiagnosis(patient.diagnosis || '');
-    setEditPatientSheetVisible(true);
+    Alert.alert('Bilgi', 'Tıbbi notlar özelliği yakında eklenecektir.');
   };
 
   // Acil durum kişileri aç
@@ -417,9 +414,9 @@ export default function SettingsScreen() {
             <Text style={styles.profileName}>{displayName}</Text>
             <Text style={styles.profileEmail}>{email}</Text>
           </View>
-          <TouchableOpacity style={styles.editBtn} onPress={openProfileEdit}>
+          <AnimatedButton style={styles.editBtn} onPress={openProfileEdit}>
             <Ionicons name="create-outline" size={20} color={colors.primary} />
-          </TouchableOpacity>
+          </AnimatedButton>
         </View>
 
         {/* Patient Section */}
@@ -1090,13 +1087,13 @@ export default function SettingsScreen() {
           <Text style={[styles.inputLabel, { marginTop: spacing.lg }]}>Ses Yüksekliği</Text>
           <View style={{ backgroundColor: colors.surfaceVariant, padding: spacing.lg, borderRadius: borderRadius.lg }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xl }}>
-              <TouchableOpacity 
+              <AnimatedButton 
                 onPress={decreaseVolume} 
                 activeOpacity={0.5}
                 style={{ width: 48, height: 48, backgroundColor: volume <= 10 ? colors.border : colors.primary, borderRadius: 24, justifyContent: 'center', alignItems: 'center', ...shadows.sm }}
               >
                 <Ionicons name="volume-low" size={22} color={colors.textOnPrimary} />
-              </TouchableOpacity>
+              </AnimatedButton>
               
               <View style={{ alignItems: 'center', minWidth: 80 }}>
                 <Ionicons 
@@ -1109,13 +1106,13 @@ export default function SettingsScreen() {
                 </Text>
               </View>
 
-              <TouchableOpacity 
+              <AnimatedButton 
                 onPress={increaseVolume} 
                 activeOpacity={0.5}
                 style={{ width: 48, height: 48, backgroundColor: volume >= 100 ? colors.border : colors.primary, borderRadius: 24, justifyContent: 'center', alignItems: 'center', ...shadows.sm }}
               >
                 <Ionicons name="volume-high" size={22} color={colors.textOnPrimary} />
-              </TouchableOpacity>
+              </AnimatedButton>
             </View>
             
             {/* Seviye çubuğu */}
@@ -1125,16 +1122,16 @@ export default function SettingsScreen() {
           </View>
 
           <View style={[styles.flexRow, { gap: spacing.md, marginTop: spacing.xl }]}>
-            <TouchableOpacity
+            <AnimatedButton
               style={[styles.saveBtn, { flex: 1, backgroundColor: colors.warning, ...shadows.md }]}
               onPress={handleTestSound}
               activeOpacity={0.6}
             >
               <Ionicons name="play-circle" size={22} color={colors.textOnPrimary} />
               <Text style={styles.saveBtnText}>Sesi Test Et</Text>
-            </TouchableOpacity>
+            </AnimatedButton>
 
-            <TouchableOpacity
+            <AnimatedButton
               style={[styles.saveBtn, { flex: 1, ...shadows.md }, savingSoundSettings && { opacity: 0.6 }]}
               onPress={handleSaveSoundSettings}
               disabled={savingSoundSettings}
@@ -1148,7 +1145,7 @@ export default function SettingsScreen() {
                   <Text style={styles.saveBtnText}>Cihaza Kaydet</Text>
                 </>
               )}
-            </TouchableOpacity>
+            </AnimatedButton>
           </View>
         </View>
       </BottomSheet>

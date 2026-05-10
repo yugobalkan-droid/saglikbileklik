@@ -9,7 +9,6 @@
  *    - 1x Titreşim Motoru
  *    - ESP-NOW (ESP32 dahili radyo ile ilaç kutusu haberleşmesi)
  *    - 1x Push Button (ilaç onay)
- *    - 1x Durum LED'i
  * =========================================================
  */
 
@@ -27,16 +26,13 @@
 // bilekliği aynı kanala ayarla. Varsayılan: 1
 #define ESPNOW_CHANNEL        4
 
-/* ─── Titreşim Motoru ────────────────────────────────────── */
+/* ─── Titreşim Motoru ──────────────────────────────── */
 // 1 adet düğme titreşim motoru (2N2222A transistör üzerinden)
-#define VIBRO_MOTOR_PIN       4     // Titreşim motoru (GPIO 4 → 330Ω → 2N2222A Base)
+#define VIBRO_MOTOR_PIN       38    // Titreşim motoru (GPIO 38 → 330Ω → 2N2222A Base)
 
 /* ─── Buton ──────────────────────────────────────────────── */
 #define BUTTON_PIN            6     // İlaç alındı onay butonu (INPUT_PULLUP)
 #define BOOT_BUTTON_PIN       0     // Dahili BOOT butonu (yedek)
-
-/* ─── Durum LED'i ────────────────────────────────────────── */
-#define STATUS_LED_PIN        38    // Küçük durum LED'i (şarj/bağlantı)
 
 /* ─── Pil Yönetimi (ADC) ────────────────────────────────── */
 // Voltaj bölücü: Pil(+) → 100kΩ → ADC_PIN → 100kΩ → GND

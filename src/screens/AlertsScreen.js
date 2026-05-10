@@ -10,6 +10,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius, shadows } from '../theme';
 import AlertOverlay from '../components/AlertOverlay';
+import AnimatedButton from '../components/AnimatedButton';
 import { usePatient } from '../context/PatientContext';
 import { markAsRead, markAllAsRead, resolveAlert, deleteAllAlerts } from '../services/alertService';
 import { Alert } from 'react-native';
@@ -142,7 +143,7 @@ export default function AlertsScreen() {
   const renderNotifCard = (notif) => {
     const iconConfig = getNotificationIcon(notif.type);
     return (
-      <TouchableOpacity
+      <AnimatedButton
         key={notif.id}
         style={[styles.notifCard, !notif.isRead && styles.notifCardNew]}
         onPress={() => handleNotifPress(notif)}
@@ -159,7 +160,7 @@ export default function AlertsScreen() {
           <Text style={styles.notifMessage}>{notif.message}</Text>
           <Text style={styles.notifTime}>{formatTimestamp(notif.createdAt)}</Text>
         </View>
-      </TouchableOpacity>
+      </AnimatedButton>
     );
   };
 
@@ -175,21 +176,21 @@ export default function AlertsScreen() {
           <Text style={styles.title}>Bildirimler</Text>
           <View style={{ flexDirection: 'row', gap: 10 }}>
             {alerts.length > 0 && (
-              <TouchableOpacity style={styles.clearBtn} onPress={handleDeleteAll} activeOpacity={0.6}>
+              <AnimatedButton style={styles.clearBtn} onPress={handleDeleteAll} activeOpacity={0.6}>
                 <Text style={[styles.clearBtnText, { color: colors.accent }]}>Tümünü Sil</Text>
-              </TouchableOpacity>
+              </AnimatedButton>
             )}
             {unreadCount > 0 && (
-              <TouchableOpacity style={styles.clearBtn} onPress={handleMarkAllRead} activeOpacity={0.6}>
+              <AnimatedButton style={styles.clearBtn} onPress={handleMarkAllRead} activeOpacity={0.6}>
                 <Text style={styles.clearBtnText}>Okundu Yap</Text>
-              </TouchableOpacity>
+              </AnimatedButton>
             )}
           </View>
         </View>
 
         {/* Active Alert Banner */}
         {urgentAlert && (
-          <TouchableOpacity
+          <AnimatedButton
             style={styles.alertBanner}
             onPress={() => {
               setSelectedNotif(urgentAlert);
@@ -207,7 +208,7 @@ export default function AlertsScreen() {
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.6)" />
-          </TouchableOpacity>
+          </AnimatedButton>
         )}
 
         {/* Notification Filters */}
@@ -218,7 +219,7 @@ export default function AlertsScreen() {
           contentContainerStyle={styles.filterContent}
         >
           {filters.map((filter) => (
-            <TouchableOpacity
+            <AnimatedButton
               key={filter.key}
               style={[styles.filterChip, activeFilter === filter.key && styles.filterChipActive]}
               onPress={() => setActiveFilter(filter.key)}
@@ -234,7 +235,7 @@ export default function AlertsScreen() {
               <Text style={[styles.filterText, activeFilter === filter.key && styles.filterTextActive]}>
                 {filter.label}
               </Text>
-            </TouchableOpacity>
+            </AnimatedButton>
           ))}
         </ScrollView>
 

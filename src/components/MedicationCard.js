@@ -1,11 +1,12 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius, shadows } from '../theme';
+import AnimatedButton from './AnimatedButton';
 
 export default function MedicationCard({ compartment, medication, time, isNext, onPress }) {
   return (
-    <TouchableOpacity
+    <AnimatedButton
       style={[styles.card, isNext && styles.nextCard]}
       onPress={onPress}
       activeOpacity={0.8}
@@ -38,7 +39,7 @@ export default function MedicationCard({ compartment, medication, time, isNext, 
         size={20}
         color={isNext ? 'rgba(255,255,255,0.6)' : colors.textTertiary}
       />
-    </TouchableOpacity>
+    </AnimatedButton>
   );
 }
 

@@ -1,17 +1,18 @@
 import React from 'react';
-import { TouchableOpacity, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, borderRadius, shadows } from '../theme';
+import AnimatedButton from './AnimatedButton';
 
 export default function FAB({ onPress, icon = 'add', size = 56 }) {
   return (
-    <TouchableOpacity
+    <AnimatedButton
       style={[styles.fab, { width: size, height: size, borderRadius: size / 2 }]}
       onPress={onPress}
       activeOpacity={0.6}
     >
       <Ionicons name={icon} size={28} color={colors.textOnPrimary} />
-    </TouchableOpacity>
+    </AnimatedButton>
   );
 }
 

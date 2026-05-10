@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius, shadows } from '../theme';
 import BottomSheet from '../components/BottomSheet';
+import AnimatedButton from '../components/AnimatedButton';
 import { usePatient } from '../context/PatientContext';
 import { upsertSlot, deleteSlot } from '../services/scheduleService';
 
@@ -160,14 +161,14 @@ export default function ScheduleScreen() {
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text style={styles.title}>Haftalık İlaç Planı</Text>
-          <TouchableOpacity 
+          <AnimatedButton 
             style={{backgroundColor: colors.accent, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, flexDirection: 'row', alignItems: 'center'}} 
             onPress={handleForceSync}
             activeOpacity={0.6}
           >
             <Ionicons name="sync-outline" size={16} color="white" style={{marginRight: 4}} />
             <Text style={{color: 'white', fontWeight: 'bold'}}>Senkronize Et</Text>
-          </TouchableOpacity>
+          </AnimatedButton>
         </View>
 
         <Text style={styles.subtitle}>
@@ -225,7 +226,7 @@ export default function ScheduleScreen() {
               const pc = PERIOD_COLORS[periodIdx];
 
               return (
-                <TouchableOpacity
+                <AnimatedButton
                   key={`${periodIdx}-${dayIdx}`}
                   style={[
                     styles.cell,
@@ -260,7 +261,7 @@ export default function ScheduleScreen() {
                       <Text style={[styles.cellEmptyLabel, { color: pc.border }]}>Ekle</Text>
                     </>
                   )}
-                </TouchableOpacity>
+                </AnimatedButton>
               );
             })}
           </View>
@@ -327,12 +328,12 @@ export default function ScheduleScreen() {
                       <Text style={{ ...typography.bodyLarge, fontWeight: 'bold', color: colors.textPrimary }}>{med.name || med.medicationName}</Text>
                       <Text style={{ ...typography.bodyMedium, color: colors.textSecondary }}>Saat: {med.time}</Text>
                     </View>
-                    <TouchableOpacity style={{ padding: spacing.sm }} onPress={() => openEditMode(med)} activeOpacity={0.5}>
+                    <AnimatedButton style={{ padding: spacing.sm }} onPress={() => openEditMode(med)} activeOpacity={0.5}>
                       <Ionicons name="pencil-outline" size={20} color={colors.primary} />
-                    </TouchableOpacity>
-                    <TouchableOpacity style={{ padding: spacing.sm }} onPress={() => handleDelete(med.id)} activeOpacity={0.5}>
+                    </AnimatedButton>
+                    <AnimatedButton style={{ padding: spacing.sm }} onPress={() => handleDelete(med.id)} activeOpacity={0.5}>
                       <Ionicons name="trash-outline" size={20} color={colors.accent} />
-                    </TouchableOpacity>
+                    </AnimatedButton>
                   </View>
                 ))}
                 

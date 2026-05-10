@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius, shadows } from '../theme';
+import AnimatedButton from '../components/AnimatedButton';
 import { signIn, signUp } from '../services/authService';
 
 export default function LoginScreen() {
@@ -147,18 +148,18 @@ export default function LoginScreen() {
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
               />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+              <AnimatedButton onPress={() => setShowPassword(!showPassword)}>
                 <Ionicons
                   name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                   size={20}
                   color={colors.textTertiary}
                 />
-              </TouchableOpacity>
+              </AnimatedButton>
             </View>
           </View>
 
           {/* Submit */}
-          <TouchableOpacity
+          <AnimatedButton
             style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
             onPress={handleSubmit}
             disabled={loading}
@@ -178,10 +179,10 @@ export default function LoginScreen() {
                 </Text>
               </>
             )}
-          </TouchableOpacity>
+          </AnimatedButton>
 
           {/* Toggle */}
-          <TouchableOpacity
+          <AnimatedButton
             style={styles.toggleBtn}
             onPress={() => setIsLogin(!isLogin)}
           >
@@ -191,7 +192,7 @@ export default function LoginScreen() {
                 {isLogin ? 'Kayıt Ol' : 'Giriş Yap'}
               </Text>
             </Text>
-          </TouchableOpacity>
+          </AnimatedButton>
         </View>
 
         {/* Footer */}

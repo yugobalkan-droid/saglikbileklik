@@ -153,6 +153,7 @@ void setup() {
   delay(200);
 
   // Pin modları
+  pinMode(NEOPIXEL_PIN, OUTPUT);
   strip.begin();
   strip.setBrightness(LED_BRIGHTNESS);
   strip.clear();

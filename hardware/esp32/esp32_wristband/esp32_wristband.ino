@@ -13,9 +13,8 @@
  *    ✅ Buton ile ilaç onayı
  *
  *  Donanım:
- *    Titreşim Motoru     → GPIO 4 (2N2222A + 330Ω üzerinden)
+ *    Titreşim Motoru     → GPIO 38 (2N2222A + 330Ω üzerinden)
  *    Buton               → GPIO 6 (INPUT_PULLUP)
- *    Durum LED           → GPIO 38
  *    Pil ADC             → GPIO 1 (voltaj bölücü: 100k/100k)
  *    TP4056 CHRG          → GPIO 7 (INPUT_PULLUP)
  *    TP4056 STDBY         → GPIO 8 (INPUT_PULLUP)
@@ -58,7 +57,8 @@ unsigned long lastBLENotify = 0;
 unsigned long lastVibrateToggle = 0;
 unsigned long lastActivityTime = 0; // Son aktivite zamanı (deep sleep için)
 unsigned long alarmStartTime = 0;   // Alarm başlangıç zamanı
-unsigned long lastAlarmStopped = 0; // Alarmın tekrar tetiklenmesini önlemek için cooldown
+unsigned long lastAlarmStopped =
+    0; // Alarmın tekrar tetiklenmesini önlemek için cooldown
 
 /* ─── Fonksiyon Bildirimleri ─────────────────────────────── */
 void triggerAlarm(uint8_t type);
@@ -89,7 +89,6 @@ void setup() {
 
   // ── Pin Kurulumu ──
   pinMode(VIBRO_MOTOR_PIN, OUTPUT);
-  pinMode(STATUS_LED_PIN, OUTPUT);
   pinMode(BUTTON_PIN, INPUT_PULLUP);
   pinMode(BOOT_BUTTON_PIN, INPUT_PULLUP);
 
@@ -151,8 +150,10 @@ void setup() {
                                         : "Hayır");
   DEBUG_PRINTF("ESP-NOW: %s | BLE: %s\n", espnow.isReady ? "✅" : "❌",
                "✅ Yayında");
-  DEBUG_PRINTF("Deep Sleep: %s\n", 
-               (power.isUsbPowered && DISABLE_DEEP_SLEEP_ON_USB) ? "❌ Devre Dışı" : "✅ Aktif");
+  DEBUG_PRINTF("Deep Sleep: %s\n",
+               (power.isUsbPowered && DISABLE_DEEP_SLEEP_ON_USB)
+                   ? "❌ Devre Dışı"
+                   : "✅ Aktif");
 }
 
 /* ─────────────────────────────────────────────────────────
@@ -175,13 +176,15 @@ void loop() {
   if (pendingAlarmSignal) {
     pendingAlarmSignal = false;
     DEBUG_PRINTLN("[LOOP] ALARM flagı işleniyor...");
-    if (!alarmActive && (lastAlarmStopped == 0 || millis() - lastAlarmStopped > 5000)) {
+    if (!alarmActive &&
+        (lastAlarmStopped == 0 || millis() - lastAlarmStopped > 5000)) {
       triggerAlarm(ALARM_TYPE_MEDICINE);
     } else if (alarmActive) {
       DEBUG_PRINTLN("[ALARM] ⚠️ Alarm zaten aktif, sinyal yoksayıldı.");
     } else {
-      DEBUG_PRINTF("[ALARM] ⏳ Cooldown aktif (%lu ms kaldı), sinyal yoksayıldı.\n",
-                   5000 - (millis() - lastAlarmStopped));
+      DEBUG_PRINTF(
+          "[ALARM] ⏳ Cooldown aktif (%lu ms kaldı), sinyal yoksayıldı.\n",
+          5000 - (millis() - lastAlarmStopped));
     }
   }
 
@@ -227,10 +230,11 @@ void loop() {
       lowBatteryBuzz();
     }
 
-    DEBUG_PRINTF("[DURUM] Pil: %d%% (%.2fV) | Şarj: %d | BLE: %s | ESP-NOW: %s\n",
-                 power.batteryPercent, power.batteryVoltage, power.chargeState,
-                 ble.isConnected ? "Bağlı" : "Yayında",
-                 espnow.isReady ? "✅ Dinliyor" : "❌ KAPALI");
+    DEBUG_PRINTF(
+        "[DURUM] Pil: %d%% (%.2fV) | Şarj: %d | BLE: %s | ESP-NOW: %s\n",
+        power.batteryPercent, power.batteryVoltage, power.chargeState,
+        ble.isConnected ? "Bağlı" : "Yayında",
+        espnow.isReady ? "✅ Dinliyor" : "❌ KAPALI");
   }
 
   // ══════════════════════════════════════════════════════
@@ -251,7 +255,7 @@ void loop() {
   // ══════════════════════════════════════════════════
   // 7. GÜÇ TASARRUFU (Deep Sleep iptal edildi)
   // ══════════════════════════════════════════════════
-  // Bilekliğin alarm sinyallerini (NRF24) sürekli dinleyebilmesi için 
+  // Bilekliğin alarm sinyallerini (NRF24) sürekli dinleyebilmesi için
   // boşta bekleme durumunda Deep Sleep'e girmesi iptal edilmiştir.
   // Sadece kritik pil seviyesinde (batarya koruması için) uykuya geçilir.
 
@@ -266,13 +270,15 @@ void loop() {
 // İlaç kutusundan ESP-NOW mesajı geldiğinde çağrılır (WiFi task içinde!)
 // Doğrudan GPIO işlemi yapmayız, flag ile loop()'a aktarırız.
 void onMedicineAlertReceived(const char *msg) {
-  DEBUG_PRINTLN("[ALARM] 💊 İlaç kutusu sinyali alındı! (ESP-NOW) -> Flag kuruluyor");
+  DEBUG_PRINTLN(
+      "[ALARM] 💊 İlaç kutusu sinyali alındı! (ESP-NOW) -> Flag kuruluyor");
   pendingAlarmSignal = true;
 }
 
 // İlaç kutusundan DUR mesajı geldiğinde çağrılır
 void onStopAlertReceived(const char *msg) {
-  DEBUG_PRINTLN("[ALARM] 🛑 İlaç kutusundan DUR sinyali alındı! -> Flag kuruluyor");
+  DEBUG_PRINTLN(
+      "[ALARM] 🛑 İlaç kutusundan DUR sinyali alındı! -> Flag kuruluyor");
   pendingStopSignal = true;
 }
 
@@ -299,9 +305,6 @@ void triggerAlarm(uint8_t type) {
   // Motorları aç
   setVibration(true);
 
-  // Durum LED'i yak
-  digitalWrite(STATUS_LED_PIN, HIGH);
-
   // BLE'ye bildir
   ble.updateAlarmState(true);
 
@@ -320,14 +323,11 @@ void stopAlarm() {
   // Motorları kapat (çift kontrol — donanım güvenliği)
   setVibration(false);
   delay(10);
-  digitalWrite(VIBRO_MOTOR_PIN, LOW);  // Doğrudan pin garantisi
-
-  // LED kapat
-  digitalWrite(STATUS_LED_PIN, LOW);
+  digitalWrite(VIBRO_MOTOR_PIN, LOW); // Doğrudan pin garantisi
 
   // BLE'ye bildir
   ble.updateAlarmState(false);
-  
+
   // Cooldown başlat (5 saniyelik koruma)
   lastAlarmStopped = millis();
 
@@ -378,7 +378,8 @@ void handleAlarmVibration(unsigned long now) {
 // Titreşim motorunu aç/kapa (debug loglu)
 void setVibration(bool on) {
   digitalWrite(VIBRO_MOTOR_PIN, on ? HIGH : LOW);
-  DEBUG_PRINTF("[MOTOR] GPIO%d = %s\n", VIBRO_MOTOR_PIN, on ? "HIGH (çalışıyor)" : "LOW (kapalı)");
+  DEBUG_PRINTF("[MOTOR] GPIO%d = %s\n", VIBRO_MOTOR_PIN,
+               on ? "HIGH (çalışıyor)" : "LOW (kapalı)");
 }
 
 /* ─────────────────────────────────────────────────────────
@@ -426,11 +427,14 @@ void handleButton(unsigned long now) {
         // 6. Son kontrol: Motor tekrar kapalı
         digitalWrite(VIBRO_MOTOR_PIN, LOW);
 
-        // 7. Firebase bildirim kaldırıldı – ilaç kutusu NRF24 onayı ile Firebase'i günceller
+        // 7. Firebase bildirim kaldırıldı – ilaç kutusu NRF24 onayı ile
+        // Firebase'i günceller
 
       } else {
-        // ── Alarm yokken: Durum göster (kısa LED blink) ──
-        statusBlink();
+        // ── Alarm yokken: Titreşim motoruyla kısa bildirim ──
+        setVibration(true);
+        delay(100);
+        setVibration(false);
       }
     }
   } else {
@@ -442,22 +446,16 @@ void handleButton(unsigned long now) {
    GERİ BİLDİRİM FONKSİYONLARI
    ───────────────────────────────────────────────────────── */
 
-// Başlangıç testi: LED + titreşim motoru testi
+// Başlangıç testi: Tek LED + titreşim motoru testi
 void startupFeedback() {
-  DEBUG_PRINTLN("[TEST] Donanım testi başlıyor...");
-  
-  // 1. LED testi
-  DEBUG_PRINTLN("[TEST] LED testi...");
-  for (int i = 0; i < 2; i++) {
-    digitalWrite(STATUS_LED_PIN, HIGH);
-    delay(120);
-    digitalWrite(STATUS_LED_PIN, LOW);
-    delay(120);
-  }
-  
-  // 2. Titreşim motoru testi (kısa bir bip)
-  DEBUG_PRINTLN("[TEST] Titreşim motoru testi...");
-  DEBUG_PRINTF("[TEST] Motor pin: GPIO%d\n", VIBRO_MOTOR_PIN);
+  DEBUG_PRINTLN("[TEST] ══════════════════════════════════");
+  DEBUG_PRINTLN("[TEST] DONANIM TESTİ BAŞLIYOR");
+  DEBUG_PRINTLN("[TEST] ══════════════════════════════════");
+
+  // ── 1. TİTREŞİM MOTORU TESTİ ──
+  DEBUG_PRINTF("[TEST] Motor Pin: GPIO%d\n", VIBRO_MOTOR_PIN);
+  DEBUG_PRINTLN("[TEST] Motor 2 kez titreşecek (300ms açık / 200ms kapalı)");
+
   digitalWrite(VIBRO_MOTOR_PIN, HIGH);
   delay(300);
   digitalWrite(VIBRO_MOTOR_PIN, LOW);
@@ -465,10 +463,14 @@ void startupFeedback() {
   digitalWrite(VIBRO_MOTOR_PIN, HIGH);
   delay(300);
   digitalWrite(VIBRO_MOTOR_PIN, LOW);
-  
-  DEBUG_PRINTLN("[TEST] ✅ Donanım testi tamamlandı.");
-  DEBUG_PRINTLN("[TEST] Motor titrediyse GPIO doğru çalışıyor.");
-  DEBUG_PRINTLN("[TEST] Motor titremediyse kablolama/transistor kontrol edin!");
+
+  // ── SONUÇ ──
+  DEBUG_PRINTLN("[TEST] ──────────────────────────────────");
+  DEBUG_PRINTLN("[TEST] ✅ Test tamamlandı.");
+  DEBUG_PRINTF("[TEST] Motor GPIO%d → Titrediyse ✅ / Titremediyse "
+               "transistor/kablolama hatası ❌\n",
+               VIBRO_MOTOR_PIN);
+  DEBUG_PRINTLN("[TEST] ──────────────────────────────────");
 }
 
 // İlaç onay geri bildirimi: 2 hızlı kısa titreşim
@@ -481,34 +483,24 @@ void confirmFeedback() {
   }
 }
 
-// Düşük pil uyarısı: sadece LED (titreşim yok)
+// Düşük pil uyarısı: sadece kısa titreşim
 void lowBatteryBuzz() {
-  digitalWrite(STATUS_LED_PIN, HIGH);
+  setVibration(true);
   delay(100);
-  digitalWrite(STATUS_LED_PIN, LOW);
+  setVibration(false);
 }
 
-// Kritik pil uyarısı: 3 hızlı titreşim + LED
+// Kritik pil uyarısı: 3 hızlı titreşim
 void criticalBatteryWarning() {
   for (int i = 0; i < 3; i++) {
     setVibration(true);
-    digitalWrite(STATUS_LED_PIN, HIGH);
     delay(60);
     setVibration(false);
-    digitalWrite(STATUS_LED_PIN, LOW);
     delay(60);
   }
-}
-
-// Durum göster: Kısa LED blink
-void statusBlink() {
-  digitalWrite(STATUS_LED_PIN, HIGH);
-  delay(200);
-  digitalWrite(STATUS_LED_PIN, LOW);
 }
 
 // Tüm çıkışları kapat
 void stopAllOutputs() {
   digitalWrite(VIBRO_MOTOR_PIN, LOW);
-  digitalWrite(STATUS_LED_PIN, LOW);
 }

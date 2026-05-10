@@ -153,7 +153,6 @@ public:
 
     // Tüm çıkışları kapat
     digitalWrite(VIBRO_MOTOR_PIN, LOW);
-    digitalWrite(STATUS_LED_PIN,  LOW);
 
     delay(100); // Serial tamponunun boşalması için
 
