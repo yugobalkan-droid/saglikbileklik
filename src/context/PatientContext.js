@@ -31,6 +31,7 @@ export function PatientProvider({ children }) {
   const lastMissedRef = React.useRef(null);
   const lastTakenRef = React.useRef(null);
   const lastBraceletLowBatRef = React.useRef(false);
+  const lastBraceletTakenRef = React.useRef(null);
   const lastAlertTimesRef = React.useRef({ reminder: 0, missed: 0, taken: 0, device: 0 });
 
   // İlk yükleme: bakıcının hastasını bul

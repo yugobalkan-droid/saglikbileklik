@@ -192,7 +192,13 @@ void loop() {
   // 1. ALARM YÖNETİMİ (en yüksek öncelik)
   // ══════════════════════════════════════════════════════
   if (alarmActive) {
-    handleAlarmVibration(now);
+    // 10 dakika güvenlik zaman aşımı (DUR sinyali kaçırılırsa)
+    if (now - alarmStartTime >= 600000) {
+      DEBUG_PRINTLN("[ALARM] ⏱️ 10 dakika geçti, alarm otomatik durduruluyor (güvenlik).");
+      stopAlarm();
+    } else {
+      handleAlarmVibration(now);
+    }
     lastActivityTime = now;
   }
 

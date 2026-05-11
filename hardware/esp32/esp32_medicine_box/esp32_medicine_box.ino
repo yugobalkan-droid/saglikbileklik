@@ -142,7 +142,7 @@ FirebaseConfig config;
 
 /* ─── Zamanlama ──────────────────────────────────────────── */
 unsigned long lastFirebaseCheck = 0;
-const unsigned long FIREBASE_INTERVAL = 15000; // 15 saniyede bir kontrol
+const unsigned long FIREBASE_INTERVAL = 5000; // 5 saniyede bir kontrol (alarm kaçırma riskini azaltmak için)
 
 
 /* ─────────────────────────────────────────────────────────
@@ -453,6 +453,25 @@ String getCurrentTimeStr() {
   return String(timeStringBuff);
 }
 
+// İki "HH:MM" zaman dizgesinin birbirine ±1 dakika mesafede olup olmadığını kontrol et
+bool isWithinOneMinute(String time1, String time2) {
+  if (time1.length() < 5 || time2.length() < 5) return false;
+  
+  int h1 = time1.substring(0, 2).toInt();
+  int m1 = time1.substring(3, 5).toInt();
+  int h2 = time2.substring(0, 2).toInt();
+  int m2 = time2.substring(3, 5).toInt();
+  
+  int totalMin1 = h1 * 60 + m1;
+  int totalMin2 = h2 * 60 + m2;
+  
+  int diff = abs(totalMin1 - totalMin2);
+  // Gece yarısı geçişini hesaba kat (23:59 -> 00:00)
+  if (diff > 720) diff = 1440 - diff;
+  
+  return diff <= 1;
+}
+
 // Güncel günü React Native formatında döndürür (0=Pzt, 6=Paz)
 String getCurrentDayStr() {
   struct tm timeinfo;
@@ -613,7 +632,8 @@ void checkFirebaseAlarm() {
             alarmTime.trim();
             Serial.print(alarmTime + "(p" + String(period) + ") ");
             
-            if (alarmTime == currentTime) {
+            // Tam eşleşme VEYA ±1 dakika tolerans kontrolü
+            if (alarmTime == currentTime || isWithinOneMinute(currentTime, alarmTime)) {
               shouldAlarm = true;
               matchedPeriod = period;
             }
@@ -639,7 +659,8 @@ void checkFirebaseAlarm() {
             Serial.println("[DEBUG] Alarm bu dakika içinde zaten tetiklendi.");
           }
         } else {
-          if (lastTriggeredAlarmTime != "") {
+          // Alarm saati 2+ dakika geçtiyse sıfırla (bir sonraki alarm tetiklenebilsin)
+          if (lastTriggeredAlarmTime != "" && !isWithinOneMinute(currentTime, lastTriggeredAlarmTime)) {
             lastTriggeredAlarmTime = "";
           }
         }
